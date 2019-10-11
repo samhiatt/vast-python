@@ -20,8 +20,6 @@ Currently no functionality is implemented for hosting machines.
 
 ## Installation
 
-`pip install vastai`  
-or, alternatively,  
 `pip install git+https://github.com/samhiatt/vast-python`
 
 ## Documentation
