@@ -2,8 +2,8 @@ language: python
 python: 
   - 3.5
   - 3.6
-install: "pip install ." # -r requirements.txt"
-#before_script: "pip install -e ."
+install: "pip install -r requirements.txt"
+before_script: "pip install -e ."
 script: "python -m pytest test/"
 before_deploy: "pdoc --html vastai "
 deploy:
