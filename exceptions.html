@@ -69,6 +69,26 @@ class PrivateSshKeyNotFound(Exception):
 <li>builtins.BaseException</li>
 </ul>
 </dd>
+<dt id="vastai.exceptions.UserNotAuthenticated"><code class="flex name class">
+<span>class <span class="ident">UserNotAuthenticated</span></span>
+<span>(</span><span>message)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Common base class for all non-exit exceptions.</p></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class UserNotAuthenticated(Exception):
+    def __init__(self, message):
+        super().__init__(message+&#34;\nMust provide a valid api_key or login with username/password.&#34;)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
 <dt id="vastai.exceptions.PrivateSshKeyNotFound"><code class="flex name class">
 <span>class <span class="ident">PrivateSshKeyNotFound</span></span>
 <span>(</span><span>key_dir, pub_key)</span>
@@ -85,26 +105,6 @@ class PrivateSshKeyNotFound(Exception):
             &#34;Could not find ssh key in %s matching public key:\n%s&#34;%(
             key_dir,pub_key)
         )</code></pre>
-</details>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>builtins.Exception</li>
-<li>builtins.BaseException</li>
-</ul>
-</dd>
-<dt id="vastai.exceptions.UserNotAuthenticated"><code class="flex name class">
-<span>class <span class="ident">UserNotAuthenticated</span></span>
-<span>(</span><span>message)</span>
-</code></dt>
-<dd>
-<section class="desc"><p>Common base class for all non-exit exceptions.</p></section>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class UserNotAuthenticated(Exception):
-    def __init__(self, message):
-        super().__init__(message+&#34;\nMust provide a valid api_key or login with username/password.&#34;)</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
@@ -132,10 +132,10 @@ class PrivateSshKeyNotFound(Exception):
 <h4><code><a title="vastai.exceptions.APIError" href="#vastai.exceptions.APIError">APIError</a></code></h4>
 </li>
 <li>
-<h4><code><a title="vastai.exceptions.PrivateSshKeyNotFound" href="#vastai.exceptions.PrivateSshKeyNotFound">PrivateSshKeyNotFound</a></code></h4>
+<h4><code><a title="vastai.exceptions.UserNotAuthenticated" href="#vastai.exceptions.UserNotAuthenticated">UserNotAuthenticated</a></code></h4>
 </li>
 <li>
-<h4><code><a title="vastai.exceptions.UserNotAuthenticated" href="#vastai.exceptions.UserNotAuthenticated">UserNotAuthenticated</a></code></h4>
+<h4><code><a title="vastai.exceptions.PrivateSshKeyNotFound" href="#vastai.exceptions.PrivateSshKeyNotFound">PrivateSshKeyNotFound</a></code></h4>
 </li>
 </ul>
 </li>
