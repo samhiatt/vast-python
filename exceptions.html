@@ -49,26 +49,6 @@ class PrivateSshKeyNotFound(Exception):
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="vastai.exceptions.APIError"><code class="flex name class">
-<span>class <span class="ident">APIError</span></span>
-<span>(</span><span>instance_id, message='')</span>
-</code></dt>
-<dd>
-<section class="desc"><p>Common base class for all non-exit exceptions.</p></section>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class APIError(Exception):
-    def __init__(self, instance_id, message=&#39;&#39;):
-        super().__init__(&#34;Instance %s\n%s&#34;%(instance_id, message))</code></pre>
-</details>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>builtins.Exception</li>
-<li>builtins.BaseException</li>
-</ul>
-</dd>
 <dt id="vastai.exceptions.UserNotAuthenticated"><code class="flex name class">
 <span>class <span class="ident">UserNotAuthenticated</span></span>
 <span>(</span><span>message)</span>
@@ -112,6 +92,26 @@ class PrivateSshKeyNotFound(Exception):
 <li>builtins.BaseException</li>
 </ul>
 </dd>
+<dt id="vastai.exceptions.APIError"><code class="flex name class">
+<span>class <span class="ident">APIError</span></span>
+<span>(</span><span>instance_id, message='')</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Common base class for all non-exit exceptions.</p></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class APIError(Exception):
+    def __init__(self, instance_id, message=&#39;&#39;):
+        super().__init__(&#34;Instance %s\n%s&#34;%(instance_id, message))</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
 </dl>
 </section>
 </article>
@@ -129,13 +129,13 @@ class PrivateSshKeyNotFound(Exception):
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="vastai.exceptions.APIError" href="#vastai.exceptions.APIError">APIError</a></code></h4>
-</li>
-<li>
 <h4><code><a title="vastai.exceptions.UserNotAuthenticated" href="#vastai.exceptions.UserNotAuthenticated">UserNotAuthenticated</a></code></h4>
 </li>
 <li>
 <h4><code><a title="vastai.exceptions.PrivateSshKeyNotFound" href="#vastai.exceptions.PrivateSshKeyNotFound">PrivateSshKeyNotFound</a></code></h4>
+</li>
+<li>
+<h4><code><a title="vastai.exceptions.APIError" href="#vastai.exceptions.APIError">APIError</a></code></h4>
 </li>
 </ul>
 </li>

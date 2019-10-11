@@ -580,6 +580,51 @@ looks for password in VASTAI_PASSWORD env variable or uses
             raise UserNotAuthenticated(&#34;Error logging in as %s.&#34;%username)</code></pre>
 </details>
 </dd>
+<dt id="vastai.api.User.get_instances"><code class="name flex">
+<span>def <span class="ident">get_instances</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Retrievs a list of user's configured instances.
+Returns: [Instance]
+Raises:
+UserNotAuthenticated: if user.api_key is not set.</p></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_instances(self):
+    &#34;&#34;&#34; Retrievs a list of user&#39;s configured instances.
+    Returns: [Instance]
+    Raises: 
+        UserNotAuthenticated: if user.api_key is not set.
+    &#34;&#34;&#34;
+    if self.api_key is None: raise UserNotAuthenticated()
+    
+    req_url = self._apiurl(&#34;/instances&#34;, owner=&#34;me&#34;);
+    r = requests.get(req_url);
+    r.raise_for_status()
+    # print(json.dumps(r.json()))
+    instances = r.json()[&#34;instances&#34;]
+    self.instance_ids = [instance[&#39;id&#39;] for instance in instances]
+    self.instances = [Instance(self, **instance) for instance in instances]
+    return self.instances</code></pre>
+</details>
+</dd>
+<dt id="vastai.api.User.get_instance"><code class="name flex">
+<span>def <span class="ident">get_instance</span></span>(<span>self, id)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_instance(self, id):
+    self.get_instances()
+    idx = self.instance_ids.index(id)
+    return self.instances[idx] if idx &gt;= 0 else None</code></pre>
+</details>
+</dd>
 <dt id="vastai.api.User.get_ssh_key_file"><code class="name flex">
 <span>def <span class="ident">get_ssh_key_file</span></span>(<span>self, key_dir='~/.ssh/')</span>
 </code></dt>
@@ -628,51 +673,6 @@ is not found in <code>key_dir</code>.</dd>
                 if f.read().strip()==self.ssh_key.strip(): 
                     return pub_key_file[:-4]
     raise PrivateSshKeyNotFound(key_dir, self.ssh_key)</code></pre>
-</details>
-</dd>
-<dt id="vastai.api.User.get_instance"><code class="name flex">
-<span>def <span class="ident">get_instance</span></span>(<span>self, id)</span>
-</code></dt>
-<dd>
-<section class="desc"></section>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def get_instance(self, id):
-    self.get_instances()
-    idx = self.instance_ids.index(id)
-    return self.instances[idx] if idx &gt;= 0 else None</code></pre>
-</details>
-</dd>
-<dt id="vastai.api.User.get_instances"><code class="name flex">
-<span>def <span class="ident">get_instances</span></span>(<span>self)</span>
-</code></dt>
-<dd>
-<section class="desc"><p>Retrievs a list of user's configured instances.
-Returns: [Instance]
-Raises:
-UserNotAuthenticated: if user.api_key is not set.</p></section>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def get_instances(self):
-    &#34;&#34;&#34; Retrievs a list of user&#39;s configured instances.
-    Returns: [Instance]
-    Raises: 
-        UserNotAuthenticated: if user.api_key is not set.
-    &#34;&#34;&#34;
-    if self.api_key is None: raise UserNotAuthenticated()
-    
-    req_url = self._apiurl(&#34;/instances&#34;, owner=&#34;me&#34;);
-    r = requests.get(req_url);
-    r.raise_for_status()
-    # print(json.dumps(r.json()))
-    instances = r.json()[&#34;instances&#34;]
-    self.instance_ids = [instance[&#39;id&#39;] for instance in instances]
-    self.instances = [Instance(self, **instance) for instance in instances]
-    return self.instances</code></pre>
 </details>
 </dd>
 </dl>
@@ -783,6 +783,64 @@ UserNotAuthenticated: if user.api_key is not set.</p></section>
 </details>
 <h3>Methods</h3>
 <dl>
+<dt id="vastai.api.Instance.run_command"><code class="name flex">
+<span>def <span class="ident">run_command</span></span>(<span>self, command_str)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Executes <code>command_str</code> on this vast.ai instance.</p></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def run_command(self, command_str):
+    &#34;&#34;&#34;
+        Executes `command_str` on this vast.ai instance.
+    &#34;&#34;&#34;
+    ssh_client = SSHClient()
+    ssh_client.set_missing_host_key_policy(AutoAddPolicy)
+    print(&#34;Connecting to %s:%i &#34;%(self.ssh_host,self.ssh_port))
+    try:
+        ssh_client.connect(self.ssh_host, port=int(self.ssh_port), 
+                   username=&#39;root&#39;, key_filename=self.user.get_ssh_key_file())
+        print(&#34;Running command &#39;%s&#39;&#34;%command_str)
+        stdin, stdout, stderr = ssh_client.exec_command(command_str)
+        print(stdout.read().decode(&#39;utf-8&#39;))
+        print(stderr.read().decode(&#39;utf-8&#39;))
+
+    # except NoValidConnectionsError as err:
+    #     raise APIError(self.id, err.errors)
+    # except Exception as err:
+    #     raise APIError(self.id, str(err))
+    finally:
+        ssh_client.close()</code></pre>
+</details>
+</dd>
+<dt id="vastai.api.Instance.destroy"><code class="name flex">
+<span>def <span class="ident">destroy</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def destroy(self):
+    url = self.user._apiurl(&#34;/instances/%s/&#34;%self.id)
+    r = requests.delete(url, json={})
+    r.raise_for_status()
+    if (r.status_code == 200):
+        rj = r.json();
+        if (rj[&#34;success&#34;]):
+            print(&#34;Destroying instance %s.&#34;%self.id )
+        else:
+            raise APIError(self.id, 
+                &#34;Error destroying instance.\n%s&#34;%rj[&#34;msg&#34;])
+    else:
+        raise APIError(self.id, 
+            &#34;Destroy instance request failed with error: %s\n%s&#34;%(r.status_code,r.text))
+    return self</code></pre>
+</details>
+</dd>
 <dt id="vastai.api.Instance.start"><code class="name flex">
 <span>def <span class="ident">start</span></span>(<span>self)</span>
 </code></dt>
@@ -843,64 +901,6 @@ Raises: APIError</p></section>
     return self</code></pre>
 </details>
 </dd>
-<dt id="vastai.api.Instance.destroy"><code class="name flex">
-<span>def <span class="ident">destroy</span></span>(<span>self)</span>
-</code></dt>
-<dd>
-<section class="desc"></section>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def destroy(self):
-    url = self.user._apiurl(&#34;/instances/%s/&#34;%self.id)
-    r = requests.delete(url, json={})
-    r.raise_for_status()
-    if (r.status_code == 200):
-        rj = r.json();
-        if (rj[&#34;success&#34;]):
-            print(&#34;Destroying instance %s.&#34;%self.id )
-        else:
-            raise APIError(self.id, 
-                &#34;Error destroying instance.\n%s&#34;%rj[&#34;msg&#34;])
-    else:
-        raise APIError(self.id, 
-            &#34;Destroy instance request failed with error: %s\n%s&#34;%(r.status_code,r.text))
-    return self</code></pre>
-</details>
-</dd>
-<dt id="vastai.api.Instance.run_command"><code class="name flex">
-<span>def <span class="ident">run_command</span></span>(<span>self, command_str)</span>
-</code></dt>
-<dd>
-<section class="desc"><p>Executes <code>command_str</code> on this vast.ai instance.</p></section>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def run_command(self, command_str):
-    &#34;&#34;&#34;
-        Executes `command_str` on this vast.ai instance.
-    &#34;&#34;&#34;
-    ssh_client = SSHClient()
-    ssh_client.set_missing_host_key_policy(AutoAddPolicy)
-    print(&#34;Connecting to %s:%i &#34;%(self.ssh_host,self.ssh_port))
-    try:
-        ssh_client.connect(self.ssh_host, port=int(self.ssh_port), 
-                   username=&#39;root&#39;, key_filename=self.user.get_ssh_key_file())
-        print(&#34;Running command &#39;%s&#39;&#34;%command_str)
-        stdin, stdout, stderr = ssh_client.exec_command(command_str)
-        print(stdout.read().decode(&#39;utf-8&#39;))
-        print(stderr.read().decode(&#39;utf-8&#39;))
-
-    # except NoValidConnectionsError as err:
-    #     raise APIError(self.id, err.errors)
-    # except Exception as err:
-    #     raise APIError(self.id, str(err))
-    finally:
-        ssh_client.close()</code></pre>
-</details>
-</dd>
 </dl>
 </dd>
 </dl>
@@ -923,18 +923,18 @@ Raises: APIError</p></section>
 <h4><code><a title="vastai.api.User" href="#vastai.api.User">User</a></code></h4>
 <ul class="">
 <li><code><a title="vastai.api.User.login" href="#vastai.api.User.login">login</a></code></li>
-<li><code><a title="vastai.api.User.get_ssh_key_file" href="#vastai.api.User.get_ssh_key_file">get_ssh_key_file</a></code></li>
-<li><code><a title="vastai.api.User.get_instance" href="#vastai.api.User.get_instance">get_instance</a></code></li>
 <li><code><a title="vastai.api.User.get_instances" href="#vastai.api.User.get_instances">get_instances</a></code></li>
+<li><code><a title="vastai.api.User.get_instance" href="#vastai.api.User.get_instance">get_instance</a></code></li>
+<li><code><a title="vastai.api.User.get_ssh_key_file" href="#vastai.api.User.get_ssh_key_file">get_ssh_key_file</a></code></li>
 </ul>
 </li>
 <li>
 <h4><code><a title="vastai.api.Instance" href="#vastai.api.Instance">Instance</a></code></h4>
 <ul class="">
+<li><code><a title="vastai.api.Instance.run_command" href="#vastai.api.Instance.run_command">run_command</a></code></li>
+<li><code><a title="vastai.api.Instance.destroy" href="#vastai.api.Instance.destroy">destroy</a></code></li>
 <li><code><a title="vastai.api.Instance.start" href="#vastai.api.Instance.start">start</a></code></li>
 <li><code><a title="vastai.api.Instance.stop" href="#vastai.api.Instance.stop">stop</a></code></li>
-<li><code><a title="vastai.api.Instance.destroy" href="#vastai.api.Instance.destroy">destroy</a></code></li>
-<li><code><a title="vastai.api.Instance.run_command" href="#vastai.api.Instance.run_command">run_command</a></code></li>
 </ul>
 </li>
 </ul>
