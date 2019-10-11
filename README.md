@@ -24,8 +24,13 @@ Currently no functionality is implemented for hosting machines.
 or, alternatively,  
 `pip install git+https://github.com/samhiatt/vast-python`
 
+## Documentation
+
+Documentation is automatically generated using [pdoc](https://pdoc3.github.io/pdoc/) and is hosted at https://samhiatt.github.io/vast-python/.
+
 ## Usage
 
+Login to vast.ai with user credentials.
 ```python
 from vastai.api import User
 
@@ -39,11 +44,10 @@ Saving api_key to /home/john_doe/.vast_api_key.
 
 Once `~/.vast_api_key` has been set `username` and `password` are no longer needed for login. 
 ```python
-user = User().login()  # Providing username e.g. User().login('john_doe') works too.
+user = User().login()  # Providing username e.g. User().login('john_doe') still works.
 ```
 ```
 Initializing user with api_key from /home/john_doe/.vast_api_key.
-Already logged in. Checking api_key...
 ```
 
 Get the user's configured instances.
