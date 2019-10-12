@@ -141,6 +141,12 @@ class apwrap(object):
 parser = apwrap()
 
 def apiurl(args, subpath, query_args=None):
+    """ Construct a url with api_key included from `args`.
+    Params:
+        args (dict): `args['api_key']` should contain api key.
+        subpath (str): path to be appended to `server_url_default`.
+        query_args (dict, optional): args to be included in query.
+    """
     if query_args is None:
         query_args = {}
     if args.api_key is not None:
@@ -186,6 +192,9 @@ displayable_fields = (
     ("reliability2",        "R",        "{:0.1f}",   lambda x: x * 100, True),
     ("duration",            "Max Days", "{:0.1f}",   lambda x: x/(24.0*60.0*60.0), True),
 )
+"""
+Instance fields for use in `display_table` to print a table of offers.
+"""
 
 instance_fields = (
     ("id",                  "ID",       "{}",       None, True),
@@ -209,8 +218,20 @@ instance_fields = (
     ("reliability2",        "R",        "{:0.1f}",  lambda x: x * 100, True),
     #("duration",            "Max Days", "{:0.1f}",  lambda x: x/(24.0*60.0*60.0), True),
 )
+"""
+Instance fields for use in `display_table` to print a table of instances.
+"""
 
 def parse_query(query_str, res=None):
+    """ Parses a query string for querying instanes by field values. 
+    Args:
+        query_str (str): Query an Instance field. See `./vast.py --help` for query format.
+        res (dict, optional): dict to be decorated with parsed query
+    Returns:
+        dict: `res` or a new dict decorated with parsed query
+    Raises:
+        ValueError: if `query_str` cannot be parsed
+    """
     if res is None: res = {}
     if type(query_str) == list:
         query_str = " ".join(query_str)
@@ -332,6 +353,11 @@ def parse_query(query_str, res=None):
     return res
 
 def display_table(rows, fields):
+    """ Prints a table of instances or offers.
+    Args:
+        rows (list of instances): list of instance objects with a `get` method for accessing its attributes.
+        fields (tuple of tuples): like `displayable_fields` or `instance_fields` 
+    """
     header = [name for _, name, _, _, _ in fields]
     out_rows = [header]
     lengths = [len(x) for x in header]
@@ -428,6 +454,19 @@ def display_table(rows, fields):
     aliases=hidden_aliases(["search instances"]),
 )
 def search__offers(args):
+    """ Search available machine offers on vast.ai. Expects `args` to be an object with the following attributes:
+    Attrs:
+        order (str): (default: `score-`)  
+                     comma-separated list of fields to sort on.  
+                     postfix field with `-` to sort desc.  
+                     example: `num_gpus,total_flops-  default='score-'`
+        query (str): query to be parsed by `parse_query`  
+        no_default (bool): if False will use the following default query:  
+                           `{ "verified":{"eq":True}, "external":{"eq":False}, "rentable":{"eq":True} }`  
+        raw (bool): return raw json output  
+        type (str): query["type"]  
+        disable_bundling (bool): query["disable_bundling"]  
+    """
     field_alias = {
         "cuda_vers"     : "cuda_max_good",
         "reliability"   : "reliability2",
@@ -485,6 +524,15 @@ def search__offers(args):
     usage="vast show instances [--api-key API_KEY] [--raw]",
 )
 def show__instances(args):
+    """ Show list of configured instances.
+    Expects `args` to be an object with the following attributes:
+    Attrs:
+        raw (bool): return raw json output (default: False) 
+        api_key (str): vast.ai api key
+        get (func): an attribute accessor function
+    Raises:
+        `requests.exceptions.HTTPError`: if request fails
+    """
     req_url = apiurl(args, "/instances", {"owner": "me"});
     r = requests.get(req_url);
     r.raise_for_status()
@@ -509,6 +557,16 @@ def show__instances(args):
     usage = "vast show machines [OPTIONS]",
 )
 def show__machines(args):
+    """ Show list of configured machines.
+    Expects `args` to be an object with the following attributes:
+    Attrs:
+        quiet (bool): only display numeric ids (default: False)
+        raw (bool): return raw json output (default: False) 
+        api_key (str): vast.ai api key
+        get (func): an attribute accessor function
+    Raises:
+        `requests.exceptions.HTTPError`: if request fails
+    """
     req_url = apiurl(args, "/machines", {"owner": "me"});
     r = requests.get(req_url);
     r.raise_for_status()
@@ -533,6 +591,19 @@ def show__machines(args):
     usage = "vast list machine id [--price_gpu PRICE_GPU] [--price_inetu PRICE_INETU] [--price_inetd PRICE_INETD] [--api-key API_KEY]",
 )
 def list__machine(args):
+    """ List a machine.
+    Expects `args` to be an object with the following attributes:
+    Attrs:
+        id (int or str): id of machine to list
+        price_gpu (float): per gpu rental price in $/hour  (price for active instances)
+        price_disk (float): storage price in $/GB/month (price for inactive instances), default: $0.15/GB/month"
+        price_inetu (float): price for internet upload bandwidth in $/GB
+        price_inetd (float): price for internet download bandwidth in $/GB
+        api_key (str): vast.ai api key
+        get (func): an attribute accessor function
+    Raises:
+        `requests.exceptions.HTTPError`: if request fails
+    """
     #req_url = args.url + "/machines/create_asks/?user_id=" + str(args.user);
     req_url = apiurl(args, "/machines/create_asks/");
 
@@ -555,10 +626,19 @@ def list__machine(args):
 
 
 @parser.command(
-    argument("id",          help="id of machine to list", type=int),
+    argument("id",          help="id of machine to unlist", type=int),
     usage = "vast unlist machine <id>",
 )
 def unlist__machine(args):
+    """ Unlist a machine.
+    Expects `args` to be an object with the following attributes:
+    Attrs:
+        id (int or str): id of machine to unlist
+        api_key (str): vast.ai api key
+        get (func): an attribute accessor function
+    Raises:
+        `requests.exceptions.HTTPError`: if request fails
+    """
     req_url = apiurl(args, "/machines/{machine_id}/asks/".format(machine_id = args.id));
     #req_url = args.url + "/machines/{machine_id}/asks/".format(machine_id = args.id);
     #print(req_url);
@@ -580,6 +660,15 @@ def unlist__machine(args):
     argument("id",          help="id of machine to remove default instance from", type=int),
 )
 def remove__defjob(args):
+    """ Remove a default instance from machine.
+    Expects `args` to be an object with the following attributes:
+    Attrs:
+        id (int or str): id of machine to remove default instance from
+        api_key (str): vast.ai api key
+        get (func): an attribute accessor function
+    Raises:
+        `requests.exceptions.HTTPError`: if request fails
+    """
 
     req_url = apiurl(args, "/machines/{machine_id}/defjob/".format(machine_id = args.id));
     #print(req_url);
@@ -601,6 +690,8 @@ def remove__defjob(args):
 
 
 def set_ask(args):
+    """ Not yet implemented.
+    """
     print("set asks!\n");
 
 
@@ -609,6 +700,15 @@ def set_ask(args):
     usage = "vast start instance <id> [--raw]",
 )
 def start__instance(args):
+    """ Starts a configured instance.  
+    Expects `args` to be an object with the following attributes:
+    Attrs:
+        id (int or str): id of instance to start/restart
+        api_key (str): vast.ai api key
+        get (func): an attribute accessor function
+    Raises:
+        `requests.exceptions.HTTPError`: if request fails
+    """
     url = apiurl(args, "/instances/{id}/".format(id=args.id))
     r = requests.put(url, json={
         "state": "running"
@@ -631,6 +731,15 @@ def start__instance(args):
     usage = "vast stop instance [--raw] <id>",
 )
 def stop__instance(args):
+    """ Stops a configured instance.  
+    Expects `args` to be an object with the following attributes:
+    Attrs:
+        id (int or str): id of instance to stop
+        api_key (str): vast.ai api key
+        get (func): an attribute accessor function
+    Raises:
+        `requests.exceptions.HTTPError`: if request fails
+    """
     url = apiurl(args, "/instances/{id}/".format(id=args.id))
     r = requests.put(url, json={
         "state": "stopped"
@@ -653,6 +762,16 @@ def stop__instance(args):
     usage = "vast label instance <id> <label>",
 )
 def label__instance(args):
+    """ Label a configured instance.  
+    Expects `args` to be an object with the following attributes:
+    Attrs:
+        id (int): id of instance to label
+        label(str): label to set 
+        api_key (str): vast.ai api key
+        get (func): an attribute accessor function
+    Raises:
+        `requests.exceptions.HTTPError`: if request fails
+    """
     url = apiurl(args, "/instances/{id}/".format(id=args.id))
     r = requests.put(url, json={
         "label": args.label
@@ -671,6 +790,15 @@ def label__instance(args):
     usage="vast destroy instance id [-h] [--api-key API_KEY] [--raw]"
 )
 def destroy__instance(args):
+    """ Destroys a configured instance.  
+    Expects `args` to be an object with the following attributes:
+    Attrs:
+        id (int or str): id of instance to delete
+        api_key (str): vast.ai api key
+        get (func): an attribute accessor function
+    Raises:
+        `requests.exceptions.HTTPError`: if request fails
+    """
     url = apiurl(args, "/instances/{id}/".format(id=args.id))
     r = requests.delete(url, json={})
     r.raise_for_status()
@@ -698,6 +826,20 @@ def destroy__instance(args):
     usage="vast set defjob id [--api-key API_KEY] [--price_gpu PRICE_GPU] [--price_inetu PRICE_INETU] [--price_inetd PRICE_INETD] [--image IMAGE] [--args ...]"
 )
 def set__defjob(args):
+    """ Launch an instance with the default job 
+    Expects `args` to be an object with the following attributes:
+    Attrs:
+        id (int): id of machine to launch default instance on
+        price_gpu (float): per gpu rental price in $/hour
+        price_inetu (float): price for internet upload bandwidth in $/GB
+        price_inetd (float): price for internet download bandwidth in $/GB
+        image (str): docker container image to launch
+        args: list of arguments passed to container launch
+        api_key (str): vast.ai api key
+        get (func): an attribute accessor function
+    Raises:
+        `requests.exceptions.HTTPError`: if request fails
+    """
     #req_url = args.url + "/machines/create_asks/?user_id=" + str(args.user);
     req_url    = apiurl(args, "/machines/create_bids/");
 
@@ -744,7 +886,7 @@ def set__defjob(args):
     argument("--onstart-cmd", help="contents of onstart script as single argument", type=str),
     argument("--jupyter",     help="Launch as a jupyter instance instead of an ssh instance.", action="store_true"),
     argument("--jupyter-dir", help="For runtype 'jupyter', directory in instance to use to launch jupyter. Defaults to image's working directory.", type=str),
-    argument("--jupyter-lab", help="For runtype 'jupyter', directory in instance to use to launch jupyter. Defaults to image's working directory.", action="store_true"),
+    argument("--jupyter-lab", help="Launch instance with jupyter lab", action="store_true"),
     argument("--lang-utf8",   help="Workaround for images with locale problems: install and generate locales before instance launch, and set locale to C.UTF-8.", action="store_true"),
     argument("--python-utf8", help="Workaround for images with locale problems: set python's locale to C.UTF-8.", action="store_true"),
     argument("--extra",       help=argparse.SUPPRESS),
@@ -754,6 +896,30 @@ def set__defjob(args):
     usage = "vast create instance id [OPTIONS] [--args ...]",
 )
 def create__instance(args):
+    """ Create an instance 
+    Expects `args` to be an object with the following attributes:
+    Attrs:
+        id (int): id of instance type to launch
+        price (float): per machine bid price in $/hour
+        disk (float): size of local disk partition in GB
+        label (str): label to set on the instance
+        onstart (str): filename to use as onstart script
+        onstart_cmd (str): contents of onstart script as single argument
+        jupyter (bool): Launch as a jupyter instance instead of an ssh instance.
+        jupyter_dir (str): For runtype 'jupyter', directory in instance to use to launch jupyter. Defaults to image's working directory.
+        jupyter_lab (bool): Launch instance with jupyter lab
+        lang_utf8 (bool): Workaround for images with locale problems: install and generate locales before instance launch, and set locale to C.UTF-8.
+        python_utf8 (bool): Workaround for images with locale problems: set python's locale to C.UTF-8.
+        extra (dict): (supressed)
+        args (list): DEPRECATED: list of arguments passed to container launch. Onstart is recommended for this purpose.
+        create_from (str): Existing instance id to use as basis for new instance. Instance configuration should usually be identical, as only the difference from the base image is copied.
+        force (bool): Skip sanity checks when creating from an existing instance
+ 
+        api_key (str): vast.ai api key
+        get (func): an attribute accessor function
+    Raises:
+        `requests.exceptions.HTTPError`: if request fails
+    """
     if args.onstart:
         with open(args.onstart, "r") as reader:
             args.onstart_cmd = reader.read()
@@ -793,7 +959,7 @@ def create__instance(args):
         print("Started. {}".format(r.json()))
 
 @parser.command(
-    argument("id",            help="id of instance type to launch", type=int),
+    argument("id",            help="id of instance type to change bid", type=int),
     argument("--price",       help="per machine bid price in $/hour", type=float),
     usage = "vast change bid id [--price PRICE]",
     epilog = deindent("""
@@ -802,6 +968,17 @@ def create__instance(args):
     """),
 )
 def change__bid(args):
+    """ Change the current bid price of instance id to PRICE.
+        If PRICE is not specified, then a winning bid price is used as the default.
+    Expects `args` to be an object with the following attributes:
+    Attrs:
+        id (int): id of instance to change bid price
+        price (float): per machine bid price in $/hour
+        api_key (str): vast.ai api key
+        get (func): an attribute accessor function
+    Raises:
+        `requests.exceptions.HTTPError`: if request fails
+    """
     url = apiurl(args, "/instances/bid_price/{id}/".format(id=args.id))
     r = requests.put(url, json={
         "client_id": "me",
@@ -820,6 +997,16 @@ def change__bid(args):
     """),
 )
 def set__min_bid(args):
+    """ Change the current min bid price of machine id to PRICE.
+    Expects `args` to be an object with the following attributes:
+    Attrs:
+        id (int): id of machine to set min bid price for
+        price (float): per gpu min bid price in $/hour
+        api_key (str): vast.ai api key
+        get (func): an attribute accessor function
+    Raises:
+        `requests.exceptions.HTTPError`: if request fails
+    """
     url = apiurl(args, "/machines/{id}/minbid/".format(id=args.id))
     r = requests.put(url, json={
         "client_id": "me",
@@ -836,6 +1023,14 @@ def set__min_bid(args):
     usage = "vast set api-key APIKEY",
 )
 def set__api_key(args):
+    """ Sets vast.ai api key.
+    Expects `args` to be an object with the following attributes:
+    Attrs:
+        api_key (str): Api key to set as currently logged in user
+        get (func): an attribute accessor function
+    Raises:
+        `requests.exceptions.HTTPError`: if request fails
+    """
     with open(api_key_file, "w") as writer:
         writer.write(args.api_key)
     print("Your api key has been saved in {}".format(api_key_file_base))
@@ -853,6 +1048,15 @@ def set__api_key(args):
     usage = "vast create account [--api-key API_KEY] [--ssh-key SSH_KEY] USERNAME PASSWORD",
 )
 def create__account(args):
+    """ Creates a vast.ai account
+    Expects `args` to be an object with the following attributes:
+    Attrs:
+        email (str): User email address
+        password (str): User password
+        get (func): an attribute accessor function
+    Raises:
+        `requests.exceptions.HTTPError`: if request fails
+    """
     if args.username is None:
         args.username = input("Email: ");
     if args.password is None:
@@ -875,10 +1079,20 @@ def create__account(args):
 @parser.command(
     argument("username",    help="Username or Email", nargs="?", default=None),
     argument("password",    help="Password", nargs="?", default=None),
-    argument("--ssh-key",     help="The SSH Pubkey you'd like to use to connect to containers"),
+    argument("--ssh-key",     help="(NOT YET IMPLEMENTED) The SSH Pubkey you'd like to use to connect to containers"),
     usage = "vast login [--username USERNAME] [--password PASSWORD] [--api-key API_KEY] [--ssh-key SSH_KEY]",
 )
 def login(args):
+    """ Creates a vast.ai account
+    Expects `args` to be an object with the following attributes:
+    Attrs:
+        username (str, optional): Username or Email. Uses input prompt if not supplied.
+        password (str, optional): User password. User getpass prompt if not supplied.
+        ssh_key (str, optional): (NOT YET IMPLEMENTED) The SSH Pubkey you'd like to use to connect to containers
+        get (func): an attribute accessor function
+    Raises:
+        `requests.exceptions.HTTPError`: if request fails
+    """
     if args.username is None:
         args.username = input("Username or Email: ");
     if args.password is None:
