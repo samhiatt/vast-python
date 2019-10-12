@@ -766,7 +766,7 @@ def label__instance(args):
     Expects `args` to be an object with the following attributes:
     Attrs:
         id (int): id of instance to label
-        label(str): label to set 
+        label (str): label to set 
         api_key (str): vast.ai api key
         get (func): an attribute accessor function
     Raises:
