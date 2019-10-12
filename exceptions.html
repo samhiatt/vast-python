@@ -54,6 +54,46 @@ class PrivateSshKeyNotFound(Exception):
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
+<dt id="vastai.exceptions.InstanceError"><code class="flex name class">
+<span>class <span class="ident">InstanceError</span></span>
+<span>(</span><span>message='', instance_id=None)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Common base class for all non-exit exceptions.</p></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class InstanceError(Exception):
+    def __init__(self, message=&#39;&#39;, instance_id=None):
+        super().__init__(&#34;Error making request for Instance %s\n%s&#34;%(instance_id, message))</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="vastai.exceptions.Unauthorized"><code class="flex name class">
+<span>class <span class="ident">Unauthorized</span></span>
+<span>(</span><span>message)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Common base class for all non-exit exceptions.</p></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Unauthorized(Exception):
+    def __init__(self, message):
+        super().__init__(message+&#34;\nMust provide a valid api_key or login with username/password.&#34;)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
 <dt id="vastai.exceptions.ApiKeyNotSet"><code class="flex name class">
 <span>class <span class="ident">ApiKeyNotSet</span></span>
 </code></dt>
@@ -97,46 +137,6 @@ class PrivateSshKeyNotFound(Exception):
 <li>builtins.BaseException</li>
 </ul>
 </dd>
-<dt id="vastai.exceptions.InstanceError"><code class="flex name class">
-<span>class <span class="ident">InstanceError</span></span>
-<span>(</span><span>message='', instance_id=None)</span>
-</code></dt>
-<dd>
-<section class="desc"><p>Common base class for all non-exit exceptions.</p></section>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class InstanceError(Exception):
-    def __init__(self, message=&#39;&#39;, instance_id=None):
-        super().__init__(&#34;Error making request for Instance %s\n%s&#34;%(instance_id, message))</code></pre>
-</details>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>builtins.Exception</li>
-<li>builtins.BaseException</li>
-</ul>
-</dd>
-<dt id="vastai.exceptions.Unauthorized"><code class="flex name class">
-<span>class <span class="ident">Unauthorized</span></span>
-<span>(</span><span>message)</span>
-</code></dt>
-<dd>
-<section class="desc"><p>Common base class for all non-exit exceptions.</p></section>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class Unauthorized(Exception):
-    def __init__(self, message):
-        super().__init__(message+&#34;\nMust provide a valid api_key or login with username/password.&#34;)</code></pre>
-</details>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>builtins.Exception</li>
-<li>builtins.BaseException</li>
-</ul>
-</dd>
 </dl>
 </section>
 </article>
@@ -154,16 +154,16 @@ class PrivateSshKeyNotFound(Exception):
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="vastai.exceptions.ApiKeyNotSet" href="#vastai.exceptions.ApiKeyNotSet">ApiKeyNotSet</a></code></h4>
-</li>
-<li>
-<h4><code><a title="vastai.exceptions.PrivateSshKeyNotFound" href="#vastai.exceptions.PrivateSshKeyNotFound">PrivateSshKeyNotFound</a></code></h4>
-</li>
-<li>
 <h4><code><a title="vastai.exceptions.InstanceError" href="#vastai.exceptions.InstanceError">InstanceError</a></code></h4>
 </li>
 <li>
 <h4><code><a title="vastai.exceptions.Unauthorized" href="#vastai.exceptions.Unauthorized">Unauthorized</a></code></h4>
+</li>
+<li>
+<h4><code><a title="vastai.exceptions.ApiKeyNotSet" href="#vastai.exceptions.ApiKeyNotSet">ApiKeyNotSet</a></code></h4>
+</li>
+<li>
+<h4><code><a title="vastai.exceptions.PrivateSshKeyNotFound" href="#vastai.exceptions.PrivateSshKeyNotFound">PrivateSshKeyNotFound</a></code></h4>
 </li>
 </ul>
 </li>
