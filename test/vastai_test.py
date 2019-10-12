@@ -21,7 +21,8 @@ def api_key_file(tmpdir):
   #print("Removed %s."%temp_filename)
 
 @pytest.fixture
-def authorized_client(requests_mock, api_key_file):
+def authorized_client(requests_mock, api_key_file, fs):
+  fs.create_dir(os.path.dirname(api_key_file))
   assert not os.path.exists(api_key_file), "api key file shouldn't exist yet"
   json_data = {"id": 1234, "api_key": test_api_key, "username": "john_doe",
                "ssh_key": "ssh-rsa AAAA..."}
@@ -47,15 +48,16 @@ def instance(requests_mock, authorized_client):
 
 def test_default_api_key_file(fs):
   client = VastClient()
-  assert client.api_key_file == default_api_key_file, \
+  expanded_path = os.path.expanduser(default_api_key_file)
+  assert client.api_key_file == expanded_path, \
          "api_key_file should default to %s"%default_api_key_file
   client = VastClient(api_key_file=None)
   assert client.api_key_file is None, "client.api_key_file should still be None."
 
 def test_bad_login(requests_mock, fs):
   requests_mock.put(api_base_url+"/users/current/", status_code=401, reason='Unauthorized' )
-  client = VastClient()
-  assert client.api_key_file == default_api_key_file
+  client = VastClient(api_key_file=None)
+  assert client.api_key_file == None
   with pytest.raises(Unauthorized):
     retVal = client.authenticate('aFakeUser','badPassword')
     assert retVal.api_key is None
@@ -86,19 +88,21 @@ def test_username_password_env_vars(requests_mock, monkeypatch, fs):
   monkeypatch.setenv('VAST_USERNAME','john_doe')
   monkeypatch.setenv('VAST_PASSWORD','abc123')
   client = VastClient()
-  assert client.api_key_file == default_api_key_file, "api_key_file location should default to home dir."
+  expanded_path = os.path.expanduser(default_api_key_file)
+  #assert client.api_key_file == os.path.dirname(expanded_path), "api_key_file should be in home dir."
   assert client.api_key is None, "api_key shouldn't be set yet."
   requests_mock.put(api_base_url+"/users/current/", json=stubs.user_json)
-  fs.create_dir(os.path.dirname(default_api_key_file))
+  fs.create_dir(os.path.dirname(expanded_path))
   client.authenticate()
-  assert client.api_key_file == default_api_key_file
+  assert client.api_key_file == expanded_path
   with open(client.api_key_file) as f:
     assert f.read() == client.api_key, "Contents of %s should match client.api_key"%default_api_key_file
   check_attrs(client, stubs.user_json)
   assert client.api_key == test_api_key, "Retrieved api key should match test_api_key."
 
-def test_authentication_with_api_key_file(requests_mock, authorized_client):
-  assert os.path.exists(authorized_client.api_key_file), "api_key_file should exist."
+def test_authentication_with_api_key_file(requests_mock, authorized_client, fs):
+  print(authorized_client.api_key_file, os.path.exists(authorized_client.api_key_file))
+  assert fs.exists(authorized_client.api_key_file), "api_key_file should exist."
   json_data = {"id": 1234, "username": "john_doe", "ssh_key": "ssh-rsa AAAA..."}
   requests_mock.get(api_base_url+"/users/current/?api_key=%s"%(authorized_client.api_key), json=json_data)
   new_client = VastClient(api_key_file=authorized_client.api_key_file)

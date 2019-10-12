@@ -32,7 +32,7 @@ class VastClient:
             ssh_key_dir (str, optional): Path to directory containing ssh key for connecting to vast.ai 
                 instances. (default: ~/.ssh/)
         """
-        self.api_key_file = os.path.expanduser(api_key_file)
+        self.api_key_file = os.path.expanduser(api_key_file) if api_key_file else None
         print("api_key_file: ",api_key_file)
         self.ssh_key_dir = os.path.expanduser(ssh_key_dir) 
         self.ssh_key = None
@@ -207,12 +207,18 @@ class Instance:
         self.status = self.actual_status if hasattr(self, 'actual_status') else None
 
     def __repr__(self):
+        """ Uses `vast.display_table` for display.
+        """
         return _grab_display_table_out([self])
 
     def __dict__(self):
+        """ Gets dict of serializable fields.
+        """
         return {k:getattr(self,k) for k in self.fields}
 
     def __json__(self):
+        """ Gets JSON serializable string
+        """
         return json.dumps(self.__dict__())
 
     def get(self, attr, default=None):
@@ -225,7 +231,7 @@ class Instance:
         return getattr(self, attr) if hasattr(self, attr) else default
 
     def _request(self, method, json_data):
-        """ Make http request to `<api_base_url>/instances/<instance.id>/` 
+        """ Makes http request to `<api_base_url>/instances/<instance.id>/` 
         Params:
             method (str): HTTP request method.
             json_data (json): JSON data to send in request body.
