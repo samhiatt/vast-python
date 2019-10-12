@@ -74,7 +74,7 @@ class VastClient:
                  ((&#34; and save in &#34;+self.api_key_file) if self.api_key_file else &#34;&#34;))
             
 
-    def login(self, username=None, password=None):
+    def authenticate(self, username=None, password=None):
         &#34;&#34;&#34;
         Get api_key using username and password.
         Args:
@@ -371,7 +371,7 @@ instances. (default: ~/.ssh/)</dd>
                  ((&#34; and save in &#34;+self.api_key_file) if self.api_key_file else &#34;&#34;))
             
 
-    def login(self, username=None, password=None):
+    def authenticate(self, username=None, password=None):
         &#34;&#34;&#34;
         Get api_key using username and password.
         Args:
@@ -488,8 +488,8 @@ instances. (default: ~/.ssh/)</dd>
 </details>
 <h3>Methods</h3>
 <dl>
-<dt id="vastai.api.VastClient.login"><code class="name flex">
-<span>def <span class="ident">login</span></span>(<span>self, username=None, password=None)</span>
+<dt id="vastai.api.VastClient.authenticate"><code class="name flex">
+<span>def <span class="ident">authenticate</span></span>(<span>self, username=None, password=None)</span>
 </code></dt>
 <dd>
 <section class="desc"><p>Get api_key using username and password.</p>
@@ -510,7 +510,7 @@ looks for password in VAST_PASSWORD env variable or uses
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def login(self, username=None, password=None):
+<pre><code class="python">def authenticate(self, username=None, password=None):
     &#34;&#34;&#34;
     Get api_key using username and password.
     Args:
@@ -856,7 +856,7 @@ Raises: APIError</p></section>
 <li>
 <h4><code><a title="vastai.api.VastClient" href="#vastai.api.VastClient">VastClient</a></code></h4>
 <ul class="">
-<li><code><a title="vastai.api.VastClient.login" href="#vastai.api.VastClient.login">login</a></code></li>
+<li><code><a title="vastai.api.VastClient.authenticate" href="#vastai.api.VastClient.authenticate">authenticate</a></code></li>
 <li><code><a title="vastai.api.VastClient.get_instance" href="#vastai.api.VastClient.get_instance">get_instance</a></code></li>
 <li><code><a title="vastai.api.VastClient.get_instances" href="#vastai.api.VastClient.get_instances">get_instances</a></code></li>
 </ul>
