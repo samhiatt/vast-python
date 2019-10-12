@@ -12,16 +12,18 @@ from vastai.exceptions import InstanceError, Unauthorized, PrivateSshKeyNotFound
 from vastai.vast import display_table, displayable_fields
 import sys, io
 
-default_api_key_file = os.path.join(os.environ['HOME'],'.vast_api_key')
+default_api_key_file = os.path.join('~','.vast_api_key')
+default_ssh_key_dir = os.path.join('~','.ssh')
 api_base_url = "https://vast.ai/api/v0"
 
 class VastClient:
     """
-    Vast.ai Account  
+    # Vast.ai API Client  
     Handles account configuration and authentication and provides get_instances method.
-    By default, looks for VAST_API_KEY env variable or ~/.vast_api_key for existing credentials. 
+    By default, looks for `VAST_API_KEY` env variable or `~/.vast_api_key` for existing credentials.
+    If `api_key_file` is explicitly set to None then the API key won't be written to disk. 
     """
-    def __init__(self, api_key_file=default_api_key_file, ssh_key_dir=None):
+    def __init__(self, api_key_file=default_api_key_file, ssh_key_dir=default_ssh_key_dir):
         """
         Initialize VastClient object.  
         Args:
@@ -30,12 +32,9 @@ class VastClient:
             ssh_key_dir (str, optional): Path to directory containing ssh key for connecting to vast.ai 
                 instances. (default: ~/.ssh/)
         """
-        self.api_key_file = api_key_file 
+        self.api_key_file = os.path.expanduser(api_key_file)
         print("api_key_file: ",api_key_file)
-        #self.api_key_file = os.path.expanduser(api_key_file) if api_key_file \
-        #                   else os.path.join(os.environ['HOME'],'.vast_api_key')
-        self.ssh_key_dir = os.path.expanduser(ssh_key_dir) if ssh_key_dir \
-                           else os.path.join(os.environ['HOME'],'.ssh')
+        self.ssh_key_dir = os.path.expanduser(ssh_key_dir) 
         self.ssh_key = None
         self.api_key = None
         self.instance_ids = []
@@ -133,17 +132,12 @@ class VastClient:
                         return pub_key_file[:-4]
         raise PrivateSshKeyNotFound(key_dir, self.ssh_key)
         
-    def get_instance(self, id):
-        self.get_instances()
-        idx = self.instance_ids.index(id)
-        return self.instances[idx] if idx >= 0 else None
-        
     def get_instances(self):
-        """ Retrievs a list of user's configured instances.
-        Returns: 
-            :`list`: of :obj:`Instance`: A list of configured Instances. 
-        Raises: 
-            ApiKeyNotSet: if user.api_key is not set.
+        """ Retrieves a list of user's configured instances.
+        Returns:
+            `InstanceList`: A list of configured `Instance`s.
+        Raises:
+            `ApiKeyNotSet`: If `self.api_key` is not set. 
         """
         if self.api_key is None: raise ApiKeyNotSet()
         
@@ -156,6 +150,17 @@ class VastClient:
         self.instances = InstanceList([Instance(self, **instance) for instance in instances])
         return self.instances
     
+    def get_instance(self, id):
+        """ Get a configured `Instance` by id.
+        Args:
+            id (str): vast.ai instance id.
+        Returns:
+            `Instance`
+        """
+        self.get_instances()
+        idx = self.instance_ids.index(id)
+        return self.instances[idx] if idx >= 0 else None
+        
     def _apiurl(self, subpath, **kwargs):
         query_args = {}
         if self.api_key is not None:
@@ -177,7 +182,7 @@ def _grab_display_table_out(instances):
     return result    
 
 class InstanceList(list):
-    """ A list of Instances, returned by `VastClient.get_instances()`
+    """ A list of `Instance`s, returned by `VastClient.get_instances()`
     """
     def __dict__(self):
         return {i.id:i.__dict__() for i in self}
@@ -188,8 +193,8 @@ class InstanceList(list):
 
 class Instance:
     def __init__(self, client, **kwargs):
-        """ Vast.ai Instance, instantiated by `VastClient.get_instances()`.
-            TODO: List Instance params
+        """ Vast.ai Instance, instantiated by `VastClient.get_instances()`.  
+            TODO: document Instance params
         Params:
             client (VastClient): 
             **kwargs
@@ -213,6 +218,9 @@ class Instance:
     def get(self, attr, default=None):
         """ Gets a specified attribute from this Instance. 
             Used by vastai.vast.display_table.
+        Args:
+            attr (str): Instance attribute
+            default: Default value, if attribute not found. (default: None)
         """
         return getattr(self, attr) if hasattr(self, attr) else default
 
@@ -243,6 +251,8 @@ class Instance:
         
     def start(self):
         """ Starts this configured instance.
+        Args:
+            None
         Raises: 
             InstanceError: if request doesn't return data['success']
         """
@@ -251,6 +261,8 @@ class Instance:
 
     def stop(self):
         """ Stops this configured instance. You can restart the instance later. 
+        Args:
+            None
         Raises: 
             InstanceError: if request doesn't return data['success']
         """
@@ -259,6 +271,8 @@ class Instance:
 
     def destroy(self):
         """ Destroys this configured instance. All data on the remote instance will be lost.
+        Args:
+            None
         Raises: 
             InstanceError: if request doesn't return data['success']
         """
@@ -268,8 +282,8 @@ class Instance:
     def run_command(self, command_str):
         """
             Uses paramiko ssh client to execute `command_str` on this remote Instance.
-        Params:
-            
+        Args:
+            command_str (str): The remote shell command to execute.
         """
         ssh_client = SSHClient()
         ssh_client.set_missing_host_key_policy(AutoAddPolicy)
