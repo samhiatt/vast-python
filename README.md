@@ -6,8 +6,7 @@ This project includes and is based on the vast.ai command-line interface [vast-a
 
 Functionality is currently incomplete, but should be enough to:
 * Log in
-    * Store user's API key in `~/.vast_api_key`
-    * Gets public SSH key used for logging into vast.ai Instances
+    * Stores user's API key in `~/.vast_api_key` by default.
 * Get current list of configured vast.ai Instances
 * Start a configured Instance
 * Stop a running Instance
@@ -30,9 +29,9 @@ Documentation is automatically generated using [pdoc](https://pdoc3.github.io/pd
 
 Login to vast.ai with user credentials.
 ```python
-from vastai.api import User
+from vastai.api import VastClient
 
-user = User().login('john_doe')
+user = VastClient().authenticate('john_doe')
 ```
 Opens a prompt for password.
 ```
@@ -40,9 +39,9 @@ Password: ________
 Saving api_key to /home/john_doe/.vast_api_key.
 ```
 
-Once `~/.vast_api_key` has been set `username` and `password` are no longer needed for login. 
+Once `~/.vast_api_key` has been set `username` and `password` are no longer needed for authentication. 
 ```python
-user = User().login()  # Providing username e.g. User().login('john_doe') still works.
+user = VastClient().authenticate()  # Providing username e.g. VastClient().authenticate('john_doe') still works.
 ```
 ```
 Initializing user with api_key from /home/john_doe/.vast_api_key.

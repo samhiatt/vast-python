@@ -17,7 +17,7 @@ setup(
     #},
     #source_dir = 'src/vastai',
     install_requires = [ 'paramiko' ],
-    tests_require = [ 'pytest', 'requests-mock' ],
+    tests_require = [ 'pytest', 'requests-mock', 'pyfakefs' ],
     extras_require = {
         'docs': ['pdoc3'],
     },

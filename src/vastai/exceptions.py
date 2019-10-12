@@ -2,9 +2,14 @@ class APIError(Exception):
     def __init__(self, instance_id, message=''):
         super().__init__("Instance %s\n%s"%(instance_id, message))
 
-class UserNotAuthenticated(Exception):
+class Unauthorized(Exception):
     def __init__(self, message):
         super().__init__(message+"\nMust provide a valid api_key or login with username/password.")
+        
+class ApiKeyNotSet(Exception):
+    def __init__(self):
+        super().__init__("Vast.ai API key not set. Set by calling login, setting VAST_API_KEY "+\
+                         "env variable, or specifying path to .vast_api_key file.")
 
 class PrivateSshKeyNotFound(Exception):
     def __init__(self, key_dir, pub_key):
