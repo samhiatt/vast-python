@@ -33,45 +33,45 @@ from urllib.parse import quote_plus
 from collections import namedtuple
 from paramiko.client import SSHClient, AutoAddPolicy
 from paramiko.ssh_exception import NoValidConnectionsError
-from vastai.exceptions import APIError, UserNotAuthenticated, PrivateSshKeyNotFound
+from vastai.exceptions import APIError, Unauthorized, PrivateSshKeyNotFound
 
+default_api_key_file = os.path.join(os.environ[&#39;HOME&#39;],&#39;.vast_api_key&#39;)
+api_base_url = &#34;https://vast.ai/api/v0&#34;
 
-class User:
+class VastClient:
     &#34;&#34;&#34;
-    Vast.ai User Account
+    Vast.ai Account  
+    Handles account configuration and authentication and provides get_instances method.
+    By default, looks for VAST_API_KEY env variable or ~/.vast_api_key for existing credentials. 
     &#34;&#34;&#34;
-    def __init__(self, api_key=None, api_key_file=&#39;~/.vast_api_key&#39;, ssh_key=&#34;~/.ssh/id_rsa&#34;):
+    def __init__(self, api_key_file=default_api_key_file, ssh_key_dir=None):
         &#34;&#34;&#34;
-        Initialize Vast.ai User object. If api_key is provided then calling 
-        login is unnecessary. It VASTAI_API_KEY env var is set it will use this, 
-        unless an api_key is explicitly specified. 
+        Initialize VastClient object.  
         Args:
-            api_key (str, optional): An existing user api_key.
-            api_key_file (str, optional): Path to file in which to save user api_key. 
-                (default &#34;~/.vast_api_key&#34;) Will not store to disk if None or False.
-            ssh_key (str, optional): Path to ssh key for connecting to vast.ai 
-                instances. (default: ~/.ssh/id_rsa)
+            api_key_file (str, optional): Path to file in which to save api_key. 
+                (default &#34;~/.vast_api_key&#34;) Will not save to disk if this is set to None or False.
+            ssh_key_dir (str, optional): Path to directory containing ssh key for connecting to vast.ai 
+                instances. (default: ~/.ssh/)
         &#34;&#34;&#34;
-        self._api_base_url = &#34;https://vast.ai/api/v0&#34;
+        self.api_key_file = api_key_file 
+        print(&#34;api_key_file: &#34;,api_key_file)
+        #self.api_key_file = os.path.expanduser(api_key_file) if api_key_file \
+        #                   else os.path.join(os.environ[&#39;HOME&#39;],&#39;.vast_api_key&#39;)
+        self.ssh_key_dir = os.path.expanduser(ssh_key_dir) if ssh_key_dir \
+                           else os.path.join(os.environ[&#39;HOME&#39;],&#39;.ssh&#39;)
         self.ssh_key = None
         self.api_key = None
-        self.api_key_file = os.path.expanduser(api_key_file) if api_key_file else None
         self.instance_ids = []
-        if api_key:
-            self.api_key = api_key
-        elif &#39;VASTAI_API_KEY&#39; in os.environ: 
-            print(&#34;Initializing user with api_key from VASTAI_API_KEY env var.&#34;)
-            self.api_key = sys.env[&#39;VASTAI_API_KEY&#39;]
-        elif type(self.api_key_file) is str: 
-            if os.path.exists(self.api_key_file):
-                with open(self.api_key_file) as f:
-                    print(&#34;Initializing user with api_key from %s.&#34;%self.api_key_file)
-                    self.api_key = f.read()
+        if &#39;VAST_API_KEY&#39; in os.environ: 
+            print(&#34;Initializing vast.ai client with api_key from VAST_API_KEY env var.&#34;)
+            self.api_key = os.environ[&#39;VAST_API_KEY&#39;]
+        elif self.api_key_file and os.path.exists(self.api_key_file):
+            with open(self.api_key_file) as f:
+                print(&#34;Initializing vast.ai client with api_key from %s.&#34;%self.api_key_file)
+                self.api_key = f.read()
         else:
             print(&#34;No api_key set. Call `login` to retrieve%s.&#34;%\
-                    &#34; and save in &#34;+self.api_key_file if self.api_key_file else &#34;&#34;)
-        # if self.api_key: # Call GET /users/current to test auth
-        #     self.login()
+                 ((&#34; and save in &#34;+self.api_key_file) if self.api_key_file else &#34;&#34;))
             
 
     def login(self, username=None, password=None):
@@ -79,26 +79,26 @@ class User:
         Get api_key using username and password.
         Args:
             username (str, optional): Vast.ai account username. Looks for 
-                in VASTAI_USERNAME env variable if not provided here. 
+                in VAST_USERNAME env variable if not provided here. 
             password (str, optional): Vast.ai login password. If not provided here
-                looks for password in VASTAI_PASSWORD env variable or uses 
+                looks for password in VAST_PASSWORD env variable or uses 
                 `getpass` prompt. 
-            api_key_file (str): Path to file in which to save user api_key. 
+            api_key_file (str): Path to file in which to save api_key. 
                 (default &#34;~/.vast_api_key&#34;) If `None` api_key will not be stored.
         &#34;&#34;&#34;
         save_api_key = True 
         if self.api_key: 
-            print(&#34;Already logged in. Checking api_key...&#34;)
+            print(&#34;Already logged in.&#34;)
             save_api_key = False # Flag to skip saving api_key since we already have it.
         else:
             if username is None:
-                if &#39;VASTAI_USERNAME&#39; in os.environ:
-                    username = os.environ[&#39;VASTAI_USERNAME&#39;]
+                if &#39;VAST_USERNAME&#39; in os.environ:
+                    username = os.environ[&#39;VAST_USERNAME&#39;]
                 else:
                     username = input(&#34;Username or Email: &#34;)
             if password is None:
-                if &#39;VASTAI_PASSWORD&#39; in os.environ:
-                    password = os.environ[&#39;VASTAI_PASSWORD&#39;]
+                if &#39;VAST_PASSWORD&#39; in os.environ:
+                    password = os.environ[&#39;VAST_PASSWORD&#39;]
                 else:
                     try:
                         # weird try/except is because windows gives a typeerror on this line
@@ -117,8 +117,6 @@ class User:
             r.raise_for_status()
             resp = r.json()
             # print(&#34;Login response:\n&#34;,json.dumps(resp))
-            # print(&#34;You are user {}! Your existing api key: {}&#34;.format(resp[&#34;id&#34;], resp[&#34;api_key&#34;]))
-            # self.api_key = resp[&#34;api_key&#34;]
             for key in resp.keys():
                 setattr(self, key, resp[key])
             if self.api_key_file and save_api_key: 
@@ -129,11 +127,11 @@ class User:
             
         except HTTPError as err:
             if self.api_key:
-                raise UserNotAuthenticated(&#34;Error logging in with api key.&#34;)
+                raise Unauthorized(&#34;Error logging in with api key.&#34;)
             else:
-                raise UserNotAuthenticated(&#34;Error logging in as %s.&#34;%username)
+                raise Unauthorized(&#34;Error logging in as %s.&#34;%username)
             
-    def get_ssh_key_file(self, key_dir=&#39;~/.ssh/&#39;):
+    def _get_ssh_key_file(self):
         &#34;&#34;&#34; Returns the path to a public ssh key used to log into remote 
             vast.ai machines. 
         Args:
@@ -145,10 +143,9 @@ class User:
             SshKeyNotSet: If `self.ssh_key` is not set.
         &#34;&#34;&#34;
         if self.ssh_key is None:
-            raise(UserNotAuthenticated())
-        key_dir = os.path.expanduser(key_dir)
+            raise(Unauthorized())
         for file in os.listdir(key_dir):
-            pub_key_file = os.path.join(key_dir, file+&#39;.pub&#39;)
+            pub_key_file = os.path.join(sekf.ssh_key_dir, file+&#39;.pub&#39;)
             # print (self.ssh_key)
             if os.path.exists(pub_key_file):
                 with open(pub_key_file) as f:
@@ -165,11 +162,12 @@ class User:
         
     def get_instances(self):
         &#34;&#34;&#34; Retrievs a list of user&#39;s configured instances.
-        Returns: [Instance]
+        Returns: 
+            :`list`: of :obj:`Instance`: A list of configured Instances. 
         Raises: 
-            UserNotAuthenticated: if user.api_key is not set.
+            ApiKeyNotSet: if user.api_key is not set.
         &#34;&#34;&#34;
-        if self.api_key is None: raise UserNotAuthenticated()
+        if self.api_key is None: raise ApiKeyNotSet()
         
         req_url = self._apiurl(&#34;/instances&#34;, owner=&#34;me&#34;);
         r = requests.get(req_url);
@@ -185,11 +183,11 @@ class User:
         if self.api_key is not None:
             query_args[&#34;api_key&#34;] = self.api_key
         if query_args:
-            return self._api_base_url + subpath + &#34;?&#34; + &#34;&amp;&#34;.join(&#34;{x}={y}&#34;.format(
+            return api_base_url + subpath + &#34;?&#34; + &#34;&amp;&#34;.join(&#34;{x}={y}&#34;.format(
                     x=x, y=quote_plus(y if isinstance(y, str) else json.dumps(y))) 
                 for x, y in query_args.items())
         else:
-            return self._api_base_url + subpath
+            return api_base_url + subpath
 
 _InstanceField = namedtuple(&#39;InstanceField&#39;,&#34;name format conversion&#34;)
 _displayable_fields = dict(
@@ -246,7 +244,6 @@ class Instance:
         else:
             print(&#34;Start instance request failed with error: %s&#34;%r.status_code)
             raise APIError(self.id, r.text)
-        return self
             
     def stop(self):
         &#34;&#34;&#34; Stop a configured instance.
@@ -265,7 +262,6 @@ class Instance:
         else:
             raise APIError(self.id, 
                 &#34;Stop instance request failed with error: %s\n%s&#34;%(r.status_code,r.text))
-        return self
             
     def destroy(self):
         url = self.user._apiurl(&#34;/instances/%s/&#34;%self.id)
@@ -281,7 +277,6 @@ class Instance:
         else:
             raise APIError(self.id, 
                 &#34;Destroy instance request failed with error: %s\n%s&#34;%(r.status_code,r.text))
-        return self
             
     def run_command(self, command_str):
         &#34;&#34;&#34;
@@ -317,66 +312,63 @@ class Instance:
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="vastai.api.User"><code class="flex name class">
-<span>class <span class="ident">User</span></span>
-<span>(</span><span>api_key=None, api_key_file='~/.vast_api_key', ssh_key='~/.ssh/id_rsa')</span>
+<dt id="vastai.api.VastClient"><code class="flex name class">
+<span>class <span class="ident">VastClient</span></span>
+<span>(</span><span>api_key_file='/home/travis/.vast_api_key', ssh_key_dir=None)</span>
 </code></dt>
 <dd>
-<section class="desc"><p>Vast.ai User Account</p>
-<p>Initialize Vast.ai User object. If api_key is provided then calling
-login is unnecessary. It VASTAI_API_KEY env var is set it will use this,
-unless an api_key is explicitly specified. </p>
+<section class="desc"><p>Vast.ai Account<br>
+Handles account configuration and authentication and provides get_instances method.
+By default, looks for VAST_API_KEY env variable or ~/.vast_api_key for existing credentials. </p>
+<p>Initialize VastClient object.
+</p>
 <h2 id="args">Args</h2>
 <dl>
-<dt><strong><code>api_key</code></strong> :&ensp;<code>str</code>, optional</dt>
-<dd>An existing user api_key.</dd>
 <dt><strong><code>api_key_file</code></strong> :&ensp;<code>str</code>, optional</dt>
-<dd>Path to file in which to save user api_key.
-(default "~/.vast_api_key") Will not store to disk if None or False.</dd>
-<dt><strong><code>ssh_key</code></strong> :&ensp;<code>str</code>, optional</dt>
-<dd>Path to ssh key for connecting to vast.ai
-instances. (default: ~/.ssh/id_rsa)</dd>
+<dd>Path to file in which to save api_key.
+(default "~/.vast_api_key") Will not save to disk if this is set to None or False.</dd>
+<dt><strong><code>ssh_key_dir</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>Path to directory containing ssh key for connecting to vast.ai
+instances. (default: ~/.ssh/)</dd>
 </dl></section>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class User:
+<pre><code class="python">class VastClient:
     &#34;&#34;&#34;
-    Vast.ai User Account
+    Vast.ai Account  
+    Handles account configuration and authentication and provides get_instances method.
+    By default, looks for VAST_API_KEY env variable or ~/.vast_api_key for existing credentials. 
     &#34;&#34;&#34;
-    def __init__(self, api_key=None, api_key_file=&#39;~/.vast_api_key&#39;, ssh_key=&#34;~/.ssh/id_rsa&#34;):
+    def __init__(self, api_key_file=default_api_key_file, ssh_key_dir=None):
         &#34;&#34;&#34;
-        Initialize Vast.ai User object. If api_key is provided then calling 
-        login is unnecessary. It VASTAI_API_KEY env var is set it will use this, 
-        unless an api_key is explicitly specified. 
+        Initialize VastClient object.  
         Args:
-            api_key (str, optional): An existing user api_key.
-            api_key_file (str, optional): Path to file in which to save user api_key. 
-                (default &#34;~/.vast_api_key&#34;) Will not store to disk if None or False.
-            ssh_key (str, optional): Path to ssh key for connecting to vast.ai 
-                instances. (default: ~/.ssh/id_rsa)
+            api_key_file (str, optional): Path to file in which to save api_key. 
+                (default &#34;~/.vast_api_key&#34;) Will not save to disk if this is set to None or False.
+            ssh_key_dir (str, optional): Path to directory containing ssh key for connecting to vast.ai 
+                instances. (default: ~/.ssh/)
         &#34;&#34;&#34;
-        self._api_base_url = &#34;https://vast.ai/api/v0&#34;
+        self.api_key_file = api_key_file 
+        print(&#34;api_key_file: &#34;,api_key_file)
+        #self.api_key_file = os.path.expanduser(api_key_file) if api_key_file \
+        #                   else os.path.join(os.environ[&#39;HOME&#39;],&#39;.vast_api_key&#39;)
+        self.ssh_key_dir = os.path.expanduser(ssh_key_dir) if ssh_key_dir \
+                           else os.path.join(os.environ[&#39;HOME&#39;],&#39;.ssh&#39;)
         self.ssh_key = None
         self.api_key = None
-        self.api_key_file = os.path.expanduser(api_key_file) if api_key_file else None
         self.instance_ids = []
-        if api_key:
-            self.api_key = api_key
-        elif &#39;VASTAI_API_KEY&#39; in os.environ: 
-            print(&#34;Initializing user with api_key from VASTAI_API_KEY env var.&#34;)
-            self.api_key = sys.env[&#39;VASTAI_API_KEY&#39;]
-        elif type(self.api_key_file) is str: 
-            if os.path.exists(self.api_key_file):
-                with open(self.api_key_file) as f:
-                    print(&#34;Initializing user with api_key from %s.&#34;%self.api_key_file)
-                    self.api_key = f.read()
+        if &#39;VAST_API_KEY&#39; in os.environ: 
+            print(&#34;Initializing vast.ai client with api_key from VAST_API_KEY env var.&#34;)
+            self.api_key = os.environ[&#39;VAST_API_KEY&#39;]
+        elif self.api_key_file and os.path.exists(self.api_key_file):
+            with open(self.api_key_file) as f:
+                print(&#34;Initializing vast.ai client with api_key from %s.&#34;%self.api_key_file)
+                self.api_key = f.read()
         else:
             print(&#34;No api_key set. Call `login` to retrieve%s.&#34;%\
-                    &#34; and save in &#34;+self.api_key_file if self.api_key_file else &#34;&#34;)
-        # if self.api_key: # Call GET /users/current to test auth
-        #     self.login()
+                 ((&#34; and save in &#34;+self.api_key_file) if self.api_key_file else &#34;&#34;))
             
 
     def login(self, username=None, password=None):
@@ -384,26 +376,26 @@ instances. (default: ~/.ssh/id_rsa)</dd>
         Get api_key using username and password.
         Args:
             username (str, optional): Vast.ai account username. Looks for 
-                in VASTAI_USERNAME env variable if not provided here. 
+                in VAST_USERNAME env variable if not provided here. 
             password (str, optional): Vast.ai login password. If not provided here
-                looks for password in VASTAI_PASSWORD env variable or uses 
+                looks for password in VAST_PASSWORD env variable or uses 
                 `getpass` prompt. 
-            api_key_file (str): Path to file in which to save user api_key. 
+            api_key_file (str): Path to file in which to save api_key. 
                 (default &#34;~/.vast_api_key&#34;) If `None` api_key will not be stored.
         &#34;&#34;&#34;
         save_api_key = True 
         if self.api_key: 
-            print(&#34;Already logged in. Checking api_key...&#34;)
+            print(&#34;Already logged in.&#34;)
             save_api_key = False # Flag to skip saving api_key since we already have it.
         else:
             if username is None:
-                if &#39;VASTAI_USERNAME&#39; in os.environ:
-                    username = os.environ[&#39;VASTAI_USERNAME&#39;]
+                if &#39;VAST_USERNAME&#39; in os.environ:
+                    username = os.environ[&#39;VAST_USERNAME&#39;]
                 else:
                     username = input(&#34;Username or Email: &#34;)
             if password is None:
-                if &#39;VASTAI_PASSWORD&#39; in os.environ:
-                    password = os.environ[&#39;VASTAI_PASSWORD&#39;]
+                if &#39;VAST_PASSWORD&#39; in os.environ:
+                    password = os.environ[&#39;VAST_PASSWORD&#39;]
                 else:
                     try:
                         # weird try/except is because windows gives a typeerror on this line
@@ -422,8 +414,6 @@ instances. (default: ~/.ssh/id_rsa)</dd>
             r.raise_for_status()
             resp = r.json()
             # print(&#34;Login response:\n&#34;,json.dumps(resp))
-            # print(&#34;You are user {}! Your existing api key: {}&#34;.format(resp[&#34;id&#34;], resp[&#34;api_key&#34;]))
-            # self.api_key = resp[&#34;api_key&#34;]
             for key in resp.keys():
                 setattr(self, key, resp[key])
             if self.api_key_file and save_api_key: 
@@ -434,11 +424,11 @@ instances. (default: ~/.ssh/id_rsa)</dd>
             
         except HTTPError as err:
             if self.api_key:
-                raise UserNotAuthenticated(&#34;Error logging in with api key.&#34;)
+                raise Unauthorized(&#34;Error logging in with api key.&#34;)
             else:
-                raise UserNotAuthenticated(&#34;Error logging in as %s.&#34;%username)
+                raise Unauthorized(&#34;Error logging in as %s.&#34;%username)
             
-    def get_ssh_key_file(self, key_dir=&#39;~/.ssh/&#39;):
+    def _get_ssh_key_file(self):
         &#34;&#34;&#34; Returns the path to a public ssh key used to log into remote 
             vast.ai machines. 
         Args:
@@ -450,10 +440,9 @@ instances. (default: ~/.ssh/id_rsa)</dd>
             SshKeyNotSet: If `self.ssh_key` is not set.
         &#34;&#34;&#34;
         if self.ssh_key is None:
-            raise(UserNotAuthenticated())
-        key_dir = os.path.expanduser(key_dir)
+            raise(Unauthorized())
         for file in os.listdir(key_dir):
-            pub_key_file = os.path.join(key_dir, file+&#39;.pub&#39;)
+            pub_key_file = os.path.join(sekf.ssh_key_dir, file+&#39;.pub&#39;)
             # print (self.ssh_key)
             if os.path.exists(pub_key_file):
                 with open(pub_key_file) as f:
@@ -470,11 +459,12 @@ instances. (default: ~/.ssh/id_rsa)</dd>
         
     def get_instances(self):
         &#34;&#34;&#34; Retrievs a list of user&#39;s configured instances.
-        Returns: [Instance]
+        Returns: 
+            :`list`: of :obj:`Instance`: A list of configured Instances. 
         Raises: 
-            UserNotAuthenticated: if user.api_key is not set.
+            ApiKeyNotSet: if user.api_key is not set.
         &#34;&#34;&#34;
-        if self.api_key is None: raise UserNotAuthenticated()
+        if self.api_key is None: raise ApiKeyNotSet()
         
         req_url = self._apiurl(&#34;/instances&#34;, owner=&#34;me&#34;);
         r = requests.get(req_url);
@@ -490,15 +480,15 @@ instances. (default: ~/.ssh/id_rsa)</dd>
         if self.api_key is not None:
             query_args[&#34;api_key&#34;] = self.api_key
         if query_args:
-            return self._api_base_url + subpath + &#34;?&#34; + &#34;&amp;&#34;.join(&#34;{x}={y}&#34;.format(
+            return api_base_url + subpath + &#34;?&#34; + &#34;&amp;&#34;.join(&#34;{x}={y}&#34;.format(
                     x=x, y=quote_plus(y if isinstance(y, str) else json.dumps(y))) 
                 for x, y in query_args.items())
         else:
-            return self._api_base_url + subpath</code></pre>
+            return api_base_url + subpath</code></pre>
 </details>
 <h3>Methods</h3>
 <dl>
-<dt id="vastai.api.User.login"><code class="name flex">
+<dt id="vastai.api.VastClient.login"><code class="name flex">
 <span>def <span class="ident">login</span></span>(<span>self, username=None, password=None)</span>
 </code></dt>
 <dd>
@@ -507,13 +497,13 @@ instances. (default: ~/.ssh/id_rsa)</dd>
 <dl>
 <dt><strong><code>username</code></strong> :&ensp;<code>str</code>, optional</dt>
 <dd>Vast.ai account username. Looks for
-in VASTAI_USERNAME env variable if not provided here. </dd>
+in VAST_USERNAME env variable if not provided here. </dd>
 <dt><strong><code>password</code></strong> :&ensp;<code>str</code>, optional</dt>
 <dd>Vast.ai login password. If not provided here
-looks for password in VASTAI_PASSWORD env variable or uses
+looks for password in VAST_PASSWORD env variable or uses
 <code>getpass</code> prompt. </dd>
 <dt><strong><code>api_key_file</code></strong> :&ensp;<code>str</code></dt>
-<dd>Path to file in which to save user api_key.
+<dd>Path to file in which to save api_key.
 (default "~/.vast_api_key") If <code>None</code> api_key will not be stored.</dd>
 </dl></section>
 <details class="source">
@@ -525,26 +515,26 @@ looks for password in VASTAI_PASSWORD env variable or uses
     Get api_key using username and password.
     Args:
         username (str, optional): Vast.ai account username. Looks for 
-            in VASTAI_USERNAME env variable if not provided here. 
+            in VAST_USERNAME env variable if not provided here. 
         password (str, optional): Vast.ai login password. If not provided here
-            looks for password in VASTAI_PASSWORD env variable or uses 
+            looks for password in VAST_PASSWORD env variable or uses 
             `getpass` prompt. 
-        api_key_file (str): Path to file in which to save user api_key. 
+        api_key_file (str): Path to file in which to save api_key. 
             (default &#34;~/.vast_api_key&#34;) If `None` api_key will not be stored.
     &#34;&#34;&#34;
     save_api_key = True 
     if self.api_key: 
-        print(&#34;Already logged in. Checking api_key...&#34;)
+        print(&#34;Already logged in.&#34;)
         save_api_key = False # Flag to skip saving api_key since we already have it.
     else:
         if username is None:
-            if &#39;VASTAI_USERNAME&#39; in os.environ:
-                username = os.environ[&#39;VASTAI_USERNAME&#39;]
+            if &#39;VAST_USERNAME&#39; in os.environ:
+                username = os.environ[&#39;VAST_USERNAME&#39;]
             else:
                 username = input(&#34;Username or Email: &#34;)
         if password is None:
-            if &#39;VASTAI_PASSWORD&#39; in os.environ:
-                password = os.environ[&#39;VASTAI_PASSWORD&#39;]
+            if &#39;VAST_PASSWORD&#39; in os.environ:
+                password = os.environ[&#39;VAST_PASSWORD&#39;]
             else:
                 try:
                     # weird try/except is because windows gives a typeerror on this line
@@ -563,8 +553,6 @@ looks for password in VASTAI_PASSWORD env variable or uses
         r.raise_for_status()
         resp = r.json()
         # print(&#34;Login response:\n&#34;,json.dumps(resp))
-        # print(&#34;You are user {}! Your existing api key: {}&#34;.format(resp[&#34;id&#34;], resp[&#34;api_key&#34;]))
-        # self.api_key = resp[&#34;api_key&#34;]
         for key in resp.keys():
             setattr(self, key, resp[key])
         if self.api_key_file and save_api_key: 
@@ -575,62 +563,12 @@ looks for password in VASTAI_PASSWORD env variable or uses
         
     except HTTPError as err:
         if self.api_key:
-            raise UserNotAuthenticated(&#34;Error logging in with api key.&#34;)
+            raise Unauthorized(&#34;Error logging in with api key.&#34;)
         else:
-            raise UserNotAuthenticated(&#34;Error logging in as %s.&#34;%username)</code></pre>
+            raise Unauthorized(&#34;Error logging in as %s.&#34;%username)</code></pre>
 </details>
 </dd>
-<dt id="vastai.api.User.get_ssh_key_file"><code class="name flex">
-<span>def <span class="ident">get_ssh_key_file</span></span>(<span>self, key_dir='~/.ssh/')</span>
-</code></dt>
-<dd>
-<section class="desc"><p>Returns the path to a public ssh key used to log into remote
-vast.ai machines. </p>
-<h2 id="args">Args</h2>
-<dl>
-<dt><strong><code>key_dir</code></strong> :&ensp;<code>str</code>, optional</dt>
-<dd>Path to directory with ssh keys.
-(default: '~/.ssh/')</dd>
-</dl>
-<h2 id="raises">Raises</h2>
-<dl>
-<dt><strong><code>PrivateSshKeyNotFound</code></strong></dt>
-<dd>If private ssh key matching <code>self.ssh_key</code>
-is not found in <code>key_dir</code>.</dd>
-<dt><strong><code>SshKeyNotSet</code></strong></dt>
-<dd>If <code>self.ssh_key</code> is not set.</dd>
-</dl></section>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def get_ssh_key_file(self, key_dir=&#39;~/.ssh/&#39;):
-    &#34;&#34;&#34; Returns the path to a public ssh key used to log into remote 
-        vast.ai machines. 
-    Args:
-        key_dir (str, optional): Path to directory with ssh keys. 
-            (default: &#39;~/.ssh/&#39;)
-    Raises:
-        PrivateSshKeyNotFound: If private ssh key matching `self.ssh_key` 
-            is not found in `key_dir`.
-        SshKeyNotSet: If `self.ssh_key` is not set.
-    &#34;&#34;&#34;
-    if self.ssh_key is None:
-        raise(UserNotAuthenticated())
-    key_dir = os.path.expanduser(key_dir)
-    for file in os.listdir(key_dir):
-        pub_key_file = os.path.join(key_dir, file+&#39;.pub&#39;)
-        # print (self.ssh_key)
-        if os.path.exists(pub_key_file):
-            with open(pub_key_file) as f:
-                # k = f.read()
-                # print(k)
-                if f.read().strip()==self.ssh_key.strip(): 
-                    return pub_key_file[:-4]
-    raise PrivateSshKeyNotFound(key_dir, self.ssh_key)</code></pre>
-</details>
-</dd>
-<dt id="vastai.api.User.get_instance"><code class="name flex">
+<dt id="vastai.api.VastClient.get_instance"><code class="name flex">
 <span>def <span class="ident">get_instance</span></span>(<span>self, id)</span>
 </code></dt>
 <dd>
@@ -645,25 +583,27 @@ is not found in <code>key_dir</code>.</dd>
     return self.instances[idx] if idx &gt;= 0 else None</code></pre>
 </details>
 </dd>
-<dt id="vastai.api.User.get_instances"><code class="name flex">
+<dt id="vastai.api.VastClient.get_instances"><code class="name flex">
 <span>def <span class="ident">get_instances</span></span>(<span>self)</span>
 </code></dt>
 <dd>
 <section class="desc"><p>Retrievs a list of user's configured instances.
-Returns: [Instance]
+Returns:
+:<code>list</code>: of :obj:<a title="vastai.api.Instance" href="#vastai.api.Instance"><code>Instance</code></a>: A list of configured Instances.
 Raises:
-UserNotAuthenticated: if user.api_key is not set.</p></section>
+ApiKeyNotSet: if user.api_key is not set.</p></section>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def get_instances(self):
     &#34;&#34;&#34; Retrievs a list of user&#39;s configured instances.
-    Returns: [Instance]
+    Returns: 
+        :`list`: of :obj:`Instance`: A list of configured Instances. 
     Raises: 
-        UserNotAuthenticated: if user.api_key is not set.
+        ApiKeyNotSet: if user.api_key is not set.
     &#34;&#34;&#34;
-    if self.api_key is None: raise UserNotAuthenticated()
+    if self.api_key is None: raise ApiKeyNotSet()
     
     req_url = self._apiurl(&#34;/instances&#34;, owner=&#34;me&#34;);
     r = requests.get(req_url);
@@ -722,7 +662,6 @@ UserNotAuthenticated: if user.api_key is not set.</p></section>
         else:
             print(&#34;Start instance request failed with error: %s&#34;%r.status_code)
             raise APIError(self.id, r.text)
-        return self
             
     def stop(self):
         &#34;&#34;&#34; Stop a configured instance.
@@ -741,7 +680,6 @@ UserNotAuthenticated: if user.api_key is not set.</p></section>
         else:
             raise APIError(self.id, 
                 &#34;Stop instance request failed with error: %s\n%s&#34;%(r.status_code,r.text))
-        return self
             
     def destroy(self):
         url = self.user._apiurl(&#34;/instances/%s/&#34;%self.id)
@@ -757,7 +695,6 @@ UserNotAuthenticated: if user.api_key is not set.</p></section>
         else:
             raise APIError(self.id, 
                 &#34;Destroy instance request failed with error: %s\n%s&#34;%(r.status_code,r.text))
-        return self
             
     def run_command(self, command_str):
         &#34;&#34;&#34;
@@ -809,8 +746,7 @@ Raises: APIError</p></section>
             raise APIError(self.id, rj[&#34;msg&#34;])
     else:
         print(&#34;Start instance request failed with error: %s&#34;%r.status_code)
-        raise APIError(self.id, r.text)
-    return self</code></pre>
+        raise APIError(self.id, r.text)</code></pre>
 </details>
 </dd>
 <dt id="vastai.api.Instance.stop"><code class="name flex">
@@ -839,8 +775,7 @@ Raises: APIError</p></section>
                 &#34;Error stopping instance.\n%s&#34;%rj[&#34;msg&#34;])
     else:
         raise APIError(self.id, 
-            &#34;Stop instance request failed with error: %s\n%s&#34;%(r.status_code,r.text))
-    return self</code></pre>
+            &#34;Stop instance request failed with error: %s\n%s&#34;%(r.status_code,r.text))</code></pre>
 </details>
 </dd>
 <dt id="vastai.api.Instance.destroy"><code class="name flex">
@@ -865,8 +800,7 @@ Raises: APIError</p></section>
                 &#34;Error destroying instance.\n%s&#34;%rj[&#34;msg&#34;])
     else:
         raise APIError(self.id, 
-            &#34;Destroy instance request failed with error: %s\n%s&#34;%(r.status_code,r.text))
-    return self</code></pre>
+            &#34;Destroy instance request failed with error: %s\n%s&#34;%(r.status_code,r.text))</code></pre>
 </details>
 </dd>
 <dt id="vastai.api.Instance.run_command"><code class="name flex">
@@ -920,12 +854,11 @@ Raises: APIError</p></section>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="vastai.api.User" href="#vastai.api.User">User</a></code></h4>
+<h4><code><a title="vastai.api.VastClient" href="#vastai.api.VastClient">VastClient</a></code></h4>
 <ul class="">
-<li><code><a title="vastai.api.User.login" href="#vastai.api.User.login">login</a></code></li>
-<li><code><a title="vastai.api.User.get_ssh_key_file" href="#vastai.api.User.get_ssh_key_file">get_ssh_key_file</a></code></li>
-<li><code><a title="vastai.api.User.get_instance" href="#vastai.api.User.get_instance">get_instance</a></code></li>
-<li><code><a title="vastai.api.User.get_instances" href="#vastai.api.User.get_instances">get_instances</a></code></li>
+<li><code><a title="vastai.api.VastClient.login" href="#vastai.api.VastClient.login">login</a></code></li>
+<li><code><a title="vastai.api.VastClient.get_instance" href="#vastai.api.VastClient.get_instance">get_instance</a></code></li>
+<li><code><a title="vastai.api.VastClient.get_instances" href="#vastai.api.VastClient.get_instances">get_instances</a></code></li>
 </ul>
 </li>
 <li>
