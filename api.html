@@ -24,7 +24,8 @@
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">import getpass
+<pre><code class="python">import logging
+import getpass
 import os
 import requests
 import json
@@ -33,7 +34,9 @@ from urllib.parse import quote_plus
 from collections import namedtuple
 from paramiko.client import SSHClient, AutoAddPolicy
 from paramiko.ssh_exception import NoValidConnectionsError
-from vastai.exceptions import APIError, Unauthorized, PrivateSshKeyNotFound
+from vastai.exceptions import InstanceError, Unauthorized, PrivateSshKeyNotFound
+from vastai.vast import display_table, displayable_fields
+import sys, io
 
 default_api_key_file = os.path.join(os.environ[&#39;HOME&#39;],&#39;.vast_api_key&#39;)
 api_base_url = &#34;https://vast.ai/api/v0&#34;
@@ -62,6 +65,7 @@ class VastClient:
         self.ssh_key = None
         self.api_key = None
         self.instance_ids = []
+        self.instances = []
         if &#39;VAST_API_KEY&#39; in os.environ: 
             print(&#34;Initializing vast.ai client with api_key from VAST_API_KEY env var.&#34;)
             self.api_key = os.environ[&#39;VAST_API_KEY&#39;]
@@ -175,7 +179,7 @@ class VastClient:
         # print(json.dumps(r.json()))
         instances = r.json()[&#34;instances&#34;]
         self.instance_ids = [instance[&#39;id&#39;] for instance in instances]
-        self.instances = [Instance(self, **instance) for instance in instances]
+        self.instances = InstanceList([Instance(self, **instance) for instance in instances])
         return self.instances
     
     def _apiurl(self, subpath, **kwargs):
@@ -189,114 +193,123 @@ class VastClient:
         else:
             return api_base_url + subpath
 
-_InstanceField = namedtuple(&#39;InstanceField&#39;,&#34;name format conversion&#34;)
-_displayable_fields = dict(
-    id =                   _InstanceField(&#34;ID&#34;,       &#34;{}&#34;,       None),
-    actual_status =        _InstanceField(&#34;Status&#34;,   &#34;{}&#34;,       None),
-    # cuda_max_good =        _InstanceField(&#34;CUDA&#34;,     &#34;{:0.1f}&#34;,  None),
-    gpu_name =             _InstanceField(&#34;Model&#34;,    &#34;{}&#34;,       None),
-    # pcie_bw =              _InstanceField(&#34;PCIE BW&#34;,  &#34;{:0.1f}&#34;,  None),
-    num_gpus =             _InstanceField(&#34;GPUs&#34;,      &#34;{}X&#34;,     None),
-    cpu_cores_effective =  _InstanceField(&#34;vCPUs&#34;,    &#34;{:.0f}X&#34;,  None),
-    cpu_ram =              _InstanceField(&#34;RAM&#34;,      &#34;{:0.1f}&#34;,  lambda x: x/1000),
-    disk_space =           _InstanceField(&#34;Storage&#34;,  &#34;{:.0f}GB&#34;,     None),
-    dph_total =            _InstanceField(&#34;Cost&#34;,     &#34;${:0.4f}/hr&#34;,  None),
-    # dlperf =               _InstanceField(&#34;DLPerf&#34;,   &#34;{:0.1f}&#34;,   None),
-    # dlperf_per_dphtotal =  _InstanceField(&#34;DLP/$&#34;,    &#34;{:0.1f}&#34;,   None),
-    inet_up =              _InstanceField(&#34;Net up&#34;,   &#34;{:0.1f}&#34;,   None),
-    inet_down =            _InstanceField(&#34;Net down&#34;, &#34;{:0.1f}&#34;,   None),
-    reliability2 =         _InstanceField(&#34;Reliability&#34;,&#34;{:0.1f}&#34;, lambda x: x * 100),
-    duration =             _InstanceField(&#34;Days Remaining&#34;, &#34;{:0.1f}&#34;,   lambda x: x/(24.0*60.0*60.0)),
-)
+
+def _grab_display_table_out(instances):
+    output = io.StringIO()
+    sys.stdout = output
+    display_table(instances, displayable_fields)
+    sys.stdout = sys.__stdout__
+    result = output.getvalue()
+    return result    
+
+class InstanceList(list):
+    &#34;&#34;&#34; A list of Instances, returned by `VastClient.get_instances()`
+    &#34;&#34;&#34;
+    def __dict__(self):
+        return {i.id:i.__dict__() for i in self}
+    def __json__(self):
+        return json.dumps([i.__dict__() for i in self])
+    def __repr__(self):
+        return _grab_display_table_out(self)
 
 class Instance:
-    def __init__(self, user, **kwargs):
+    def __init__(self, client, **kwargs):
+        &#34;&#34;&#34; Vast.ai Instance, instantiated by `VastClient.get_instances()`.
+            TODO: List Instance params
+        Params:
+            client (VastClient): 
+            **kwargs
+        &#34;&#34;&#34;
         self.fields=[]
-        self.user = user
+        self.client = client
         for key in kwargs.keys():
             setattr(self, key, kwargs[key])
             self.fields.append(key)
         self.status = self.actual_status if hasattr(self, &#39;actual_status&#39;) else None
+
     def __repr__(self):
-        res = []
-        for key, field in _displayable_fields.items():
-            val = getattr(self,key) or &#39;&#39;
-            if field.conversion: val = field.conversion(val) if val else None
-            res.append(field.name+&#34;: &#34;+(field.format.format(val) if val else &#39;-&#39;))
-        return &#39;, &#39;.join(res)
+        return _grab_display_table_out([self])
+
     def __dict__(self):
         return {k:getattr(self,k) for k in self.fields}
+
+    def __json__(self):
+        return json.dumps(self.__dict__())
+
+    def get(self, attr, default=None):
+        &#34;&#34;&#34; Gets a specified attribute from this Instance. 
+            Used by vastai.vast.display_table.
+        &#34;&#34;&#34;
+        return getattr(self, attr) if hasattr(self, attr) else default
+
+    def _request(self, method, json_data):
+        &#34;&#34;&#34; Make http request to `&lt;api_base_url&gt;/instances/&lt;instance.id&gt;/` 
+        Params:
+            method (str): HTTP request method.
+            json_data (json): JSON data to send in request body.
+        Raises:
+            InstanceError: if request doesn&#39;t return data[&#39;success&#39;]
+        &#34;&#34;&#34;
+        assert type(method) is str
+        assert method.lower() in [&#39;get&#39;, &#39;put&#39;, &#39;post&#39;, &#39;update&#39;, &#39;delete&#39;]
+        url = self.client._apiurl(&#34;/instances/%s/&#34;%self.id)
+        resp = requests.request(method, url, json=json_data)
+        resp.raise_for_status()
+        if resp.status_code == 200:
+            resp_data = resp.json()
+            if resp_data[&#39;success&#39;]:
+                logging.info(json.dumps(resp_data))
+                return resp_data
+            else:
+                logging.debug(json.dumps(resp_data))
+                raise InstanceError(resp_data[&#39;msg&#39;], self.id)
+        else:
+            logging.debug(resp)
+            raise InstanceError(resp, self.id)
         
     def start(self):
-        &#34;&#34;&#34; Start a configured instance.
-        Raises: APIError
+        &#34;&#34;&#34; Starts this configured instance.
+        Raises: 
+            InstanceError: if request doesn&#39;t return data[&#39;success&#39;]
         &#34;&#34;&#34;
-        url = self.user._apiurl(&#34;/instances/%s/&#34;%self.id)
-        r = requests.put(url, json={ &#34;state&#34;: &#34;running&#34; })
-        r.raise_for_status()
-        if (r.status_code == 200):
-            rj = r.json()
-            # print(json.dumps(rj))
-            if (rj[&#34;success&#34;]):
-                print(&#34;Starting instance %i.&#34;%self.id )
-            else:
-                raise APIError(self.id, rj[&#34;msg&#34;])
-        else:
-            print(&#34;Start instance request failed with error: %s&#34;%r.status_code)
-            raise APIError(self.id, r.text)
-            
+        self._request(&#39;put&#39;,{ &#34;state&#34;: &#34;running&#34; })
+        print(&#34;Starting instance %i.&#34;%self.id )
+
     def stop(self):
-        &#34;&#34;&#34; Stop a configured instance.
-        Raises: APIError
+        &#34;&#34;&#34; Stops this configured instance. You can restart the instance later. 
+        Raises: 
+            InstanceError: if request doesn&#39;t return data[&#39;success&#39;]
         &#34;&#34;&#34;
-        url = self.user._apiurl(&#34;/instances/%s/&#34;%self.id)
-        r = requests.put(url, json={&#34;state&#34;: &#34;stopped&#34;})
-        r.raise_for_status()
-        if (r.status_code == 200):
-            rj = r.json()
-            if (rj[&#34;success&#34;]):
-                print(&#34;Stopping instance %i.&#34;%self.id )
-            else:
-                raise APIError(self.id, 
-                    &#34;Error stopping instance.\n%s&#34;%rj[&#34;msg&#34;])
-        else:
-            raise APIError(self.id, 
-                &#34;Stop instance request failed with error: %s\n%s&#34;%(r.status_code,r.text))
-            
+        self._request(&#39;put&#39;, {&#34;state&#34;: &#34;stopped&#34;})
+        print(&#34;Stopping instance %i.&#34;%self.id )
+
     def destroy(self):
-        url = self.user._apiurl(&#34;/instances/%s/&#34;%self.id)
-        r = requests.delete(url, json={})
-        r.raise_for_status()
-        if (r.status_code == 200):
-            rj = r.json();
-            if (rj[&#34;success&#34;]):
-                print(&#34;Destroying instance %s.&#34;%self.id )
-            else:
-                raise APIError(self.id, 
-                    &#34;Error destroying instance.\n%s&#34;%rj[&#34;msg&#34;])
-        else:
-            raise APIError(self.id, 
-                &#34;Destroy instance request failed with error: %s\n%s&#34;%(r.status_code,r.text))
+        &#34;&#34;&#34; Destroys this configured instance. All data on the remote instance will be lost.
+        Raises: 
+            InstanceError: if request doesn&#39;t return data[&#39;success&#39;]
+        &#34;&#34;&#34;
+        self._request(&#39;delete&#39;,{})
+        print(&#34;Destroying instance %s&#34;%self.id)
             
     def run_command(self, command_str):
         &#34;&#34;&#34;
-            Executes `command_str` on this vast.ai instance.
+            Uses paramiko ssh client to execute `command_str` on this remote Instance.
+        Params:
+            
         &#34;&#34;&#34;
         ssh_client = SSHClient()
         ssh_client.set_missing_host_key_policy(AutoAddPolicy)
         print(&#34;Connecting to %s:%i &#34;%(self.ssh_host,self.ssh_port))
         try:
             ssh_client.connect(self.ssh_host, port=int(self.ssh_port), 
-                       username=&#39;root&#39;, key_filename=self.user.get_ssh_key_file())
+                       username=&#39;root&#39;, key_filename=self.client.get_ssh_key_file())
             print(&#34;Running command &#39;%s&#39;&#34;%command_str)
             stdin, stdout, stderr = ssh_client.exec_command(command_str)
             print(stdout.read().decode(&#39;utf-8&#39;))
             print(stderr.read().decode(&#39;utf-8&#39;))
     
         # except NoValidConnectionsError as err:
-        #     raise APIError(self.id, err.errors)
-        # except Exception as err:
-        #     raise APIError(self.id, str(err))
+        #     raise InstanceError(self.id, err.errors)
         finally:
             ssh_client.close()
             
@@ -312,226 +325,6 @@ class Instance:
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="vastai.api.Instance"><code class="flex name class">
-<span>class <span class="ident">Instance</span></span>
-<span>(</span><span>user, **kwargs)</span>
-</code></dt>
-<dd>
-<section class="desc"></section>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class Instance:
-    def __init__(self, user, **kwargs):
-        self.fields=[]
-        self.user = user
-        for key in kwargs.keys():
-            setattr(self, key, kwargs[key])
-            self.fields.append(key)
-        self.status = self.actual_status if hasattr(self, &#39;actual_status&#39;) else None
-    def __repr__(self):
-        res = []
-        for key, field in _displayable_fields.items():
-            val = getattr(self,key) or &#39;&#39;
-            if field.conversion: val = field.conversion(val) if val else None
-            res.append(field.name+&#34;: &#34;+(field.format.format(val) if val else &#39;-&#39;))
-        return &#39;, &#39;.join(res)
-    def __dict__(self):
-        return {k:getattr(self,k) for k in self.fields}
-        
-    def start(self):
-        &#34;&#34;&#34; Start a configured instance.
-        Raises: APIError
-        &#34;&#34;&#34;
-        url = self.user._apiurl(&#34;/instances/%s/&#34;%self.id)
-        r = requests.put(url, json={ &#34;state&#34;: &#34;running&#34; })
-        r.raise_for_status()
-        if (r.status_code == 200):
-            rj = r.json()
-            # print(json.dumps(rj))
-            if (rj[&#34;success&#34;]):
-                print(&#34;Starting instance %i.&#34;%self.id )
-            else:
-                raise APIError(self.id, rj[&#34;msg&#34;])
-        else:
-            print(&#34;Start instance request failed with error: %s&#34;%r.status_code)
-            raise APIError(self.id, r.text)
-            
-    def stop(self):
-        &#34;&#34;&#34; Stop a configured instance.
-        Raises: APIError
-        &#34;&#34;&#34;
-        url = self.user._apiurl(&#34;/instances/%s/&#34;%self.id)
-        r = requests.put(url, json={&#34;state&#34;: &#34;stopped&#34;})
-        r.raise_for_status()
-        if (r.status_code == 200):
-            rj = r.json()
-            if (rj[&#34;success&#34;]):
-                print(&#34;Stopping instance %i.&#34;%self.id )
-            else:
-                raise APIError(self.id, 
-                    &#34;Error stopping instance.\n%s&#34;%rj[&#34;msg&#34;])
-        else:
-            raise APIError(self.id, 
-                &#34;Stop instance request failed with error: %s\n%s&#34;%(r.status_code,r.text))
-            
-    def destroy(self):
-        url = self.user._apiurl(&#34;/instances/%s/&#34;%self.id)
-        r = requests.delete(url, json={})
-        r.raise_for_status()
-        if (r.status_code == 200):
-            rj = r.json();
-            if (rj[&#34;success&#34;]):
-                print(&#34;Destroying instance %s.&#34;%self.id )
-            else:
-                raise APIError(self.id, 
-                    &#34;Error destroying instance.\n%s&#34;%rj[&#34;msg&#34;])
-        else:
-            raise APIError(self.id, 
-                &#34;Destroy instance request failed with error: %s\n%s&#34;%(r.status_code,r.text))
-            
-    def run_command(self, command_str):
-        &#34;&#34;&#34;
-            Executes `command_str` on this vast.ai instance.
-        &#34;&#34;&#34;
-        ssh_client = SSHClient()
-        ssh_client.set_missing_host_key_policy(AutoAddPolicy)
-        print(&#34;Connecting to %s:%i &#34;%(self.ssh_host,self.ssh_port))
-        try:
-            ssh_client.connect(self.ssh_host, port=int(self.ssh_port), 
-                       username=&#39;root&#39;, key_filename=self.user.get_ssh_key_file())
-            print(&#34;Running command &#39;%s&#39;&#34;%command_str)
-            stdin, stdout, stderr = ssh_client.exec_command(command_str)
-            print(stdout.read().decode(&#39;utf-8&#39;))
-            print(stderr.read().decode(&#39;utf-8&#39;))
-    
-        # except NoValidConnectionsError as err:
-        #     raise APIError(self.id, err.errors)
-        # except Exception as err:
-        #     raise APIError(self.id, str(err))
-        finally:
-            ssh_client.close()</code></pre>
-</details>
-<h3>Methods</h3>
-<dl>
-<dt id="vastai.api.Instance.run_command"><code class="name flex">
-<span>def <span class="ident">run_command</span></span>(<span>self, command_str)</span>
-</code></dt>
-<dd>
-<section class="desc"><p>Executes <code>command_str</code> on this vast.ai instance.</p></section>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def run_command(self, command_str):
-    &#34;&#34;&#34;
-        Executes `command_str` on this vast.ai instance.
-    &#34;&#34;&#34;
-    ssh_client = SSHClient()
-    ssh_client.set_missing_host_key_policy(AutoAddPolicy)
-    print(&#34;Connecting to %s:%i &#34;%(self.ssh_host,self.ssh_port))
-    try:
-        ssh_client.connect(self.ssh_host, port=int(self.ssh_port), 
-                   username=&#39;root&#39;, key_filename=self.user.get_ssh_key_file())
-        print(&#34;Running command &#39;%s&#39;&#34;%command_str)
-        stdin, stdout, stderr = ssh_client.exec_command(command_str)
-        print(stdout.read().decode(&#39;utf-8&#39;))
-        print(stderr.read().decode(&#39;utf-8&#39;))
-
-    # except NoValidConnectionsError as err:
-    #     raise APIError(self.id, err.errors)
-    # except Exception as err:
-    #     raise APIError(self.id, str(err))
-    finally:
-        ssh_client.close()</code></pre>
-</details>
-</dd>
-<dt id="vastai.api.Instance.stop"><code class="name flex">
-<span>def <span class="ident">stop</span></span>(<span>self)</span>
-</code></dt>
-<dd>
-<section class="desc"><p>Stop a configured instance.
-Raises: APIError</p></section>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def stop(self):
-    &#34;&#34;&#34; Stop a configured instance.
-    Raises: APIError
-    &#34;&#34;&#34;
-    url = self.user._apiurl(&#34;/instances/%s/&#34;%self.id)
-    r = requests.put(url, json={&#34;state&#34;: &#34;stopped&#34;})
-    r.raise_for_status()
-    if (r.status_code == 200):
-        rj = r.json()
-        if (rj[&#34;success&#34;]):
-            print(&#34;Stopping instance %i.&#34;%self.id )
-        else:
-            raise APIError(self.id, 
-                &#34;Error stopping instance.\n%s&#34;%rj[&#34;msg&#34;])
-    else:
-        raise APIError(self.id, 
-            &#34;Stop instance request failed with error: %s\n%s&#34;%(r.status_code,r.text))</code></pre>
-</details>
-</dd>
-<dt id="vastai.api.Instance.destroy"><code class="name flex">
-<span>def <span class="ident">destroy</span></span>(<span>self)</span>
-</code></dt>
-<dd>
-<section class="desc"></section>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def destroy(self):
-    url = self.user._apiurl(&#34;/instances/%s/&#34;%self.id)
-    r = requests.delete(url, json={})
-    r.raise_for_status()
-    if (r.status_code == 200):
-        rj = r.json();
-        if (rj[&#34;success&#34;]):
-            print(&#34;Destroying instance %s.&#34;%self.id )
-        else:
-            raise APIError(self.id, 
-                &#34;Error destroying instance.\n%s&#34;%rj[&#34;msg&#34;])
-    else:
-        raise APIError(self.id, 
-            &#34;Destroy instance request failed with error: %s\n%s&#34;%(r.status_code,r.text))</code></pre>
-</details>
-</dd>
-<dt id="vastai.api.Instance.start"><code class="name flex">
-<span>def <span class="ident">start</span></span>(<span>self)</span>
-</code></dt>
-<dd>
-<section class="desc"><p>Start a configured instance.
-Raises: APIError</p></section>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def start(self):
-    &#34;&#34;&#34; Start a configured instance.
-    Raises: APIError
-    &#34;&#34;&#34;
-    url = self.user._apiurl(&#34;/instances/%s/&#34;%self.id)
-    r = requests.put(url, json={ &#34;state&#34;: &#34;running&#34; })
-    r.raise_for_status()
-    if (r.status_code == 200):
-        rj = r.json()
-        # print(json.dumps(rj))
-        if (rj[&#34;success&#34;]):
-            print(&#34;Starting instance %i.&#34;%self.id )
-        else:
-            raise APIError(self.id, rj[&#34;msg&#34;])
-    else:
-        print(&#34;Start instance request failed with error: %s&#34;%r.status_code)
-        raise APIError(self.id, r.text)</code></pre>
-</details>
-</dd>
-</dl>
-</dd>
 <dt id="vastai.api.VastClient"><code class="flex name class">
 <span>class <span class="ident">VastClient</span></span>
 <span>(</span><span>api_key_file='/home/travis/.vast_api_key', ssh_key_dir=None)</span>
@@ -579,6 +372,7 @@ instances. (default: ~/.ssh/)</dd>
         self.ssh_key = None
         self.api_key = None
         self.instance_ids = []
+        self.instances = []
         if &#39;VAST_API_KEY&#39; in os.environ: 
             print(&#34;Initializing vast.ai client with api_key from VAST_API_KEY env var.&#34;)
             self.api_key = os.environ[&#39;VAST_API_KEY&#39;]
@@ -692,7 +486,7 @@ instances. (default: ~/.ssh/)</dd>
         # print(json.dumps(r.json()))
         instances = r.json()[&#34;instances&#34;]
         self.instance_ids = [instance[&#39;id&#39;] for instance in instances]
-        self.instances = [Instance(self, **instance) for instance in instances]
+        self.instances = InstanceList([Instance(self, **instance) for instance in instances])
         return self.instances
     
     def _apiurl(self, subpath, **kwargs):
@@ -708,53 +502,6 @@ instances. (default: ~/.ssh/)</dd>
 </details>
 <h3>Methods</h3>
 <dl>
-<dt id="vastai.api.VastClient.get_instances"><code class="name flex">
-<span>def <span class="ident">get_instances</span></span>(<span>self)</span>
-</code></dt>
-<dd>
-<section class="desc"><p>Retrievs a list of user's configured instances.
-Returns:
-:<code>list</code>: of :obj:<a title="vastai.api.Instance" href="#vastai.api.Instance"><code>Instance</code></a>: A list of configured Instances.
-Raises:
-ApiKeyNotSet: if user.api_key is not set.</p></section>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def get_instances(self):
-    &#34;&#34;&#34; Retrievs a list of user&#39;s configured instances.
-    Returns: 
-        :`list`: of :obj:`Instance`: A list of configured Instances. 
-    Raises: 
-        ApiKeyNotSet: if user.api_key is not set.
-    &#34;&#34;&#34;
-    if self.api_key is None: raise ApiKeyNotSet()
-    
-    req_url = self._apiurl(&#34;/instances&#34;, owner=&#34;me&#34;);
-    r = requests.get(req_url);
-    r.raise_for_status()
-    # print(json.dumps(r.json()))
-    instances = r.json()[&#34;instances&#34;]
-    self.instance_ids = [instance[&#39;id&#39;] for instance in instances]
-    self.instances = [Instance(self, **instance) for instance in instances]
-    return self.instances</code></pre>
-</details>
-</dd>
-<dt id="vastai.api.VastClient.get_instance"><code class="name flex">
-<span>def <span class="ident">get_instance</span></span>(<span>self, id)</span>
-</code></dt>
-<dd>
-<section class="desc"></section>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def get_instance(self, id):
-    self.get_instances()
-    idx = self.instance_ids.index(id)
-    return self.instances[idx] if idx &gt;= 0 else None</code></pre>
-</details>
-</dd>
 <dt id="vastai.api.VastClient.authenticate"><code class="name flex">
 <span>def <span class="ident">authenticate</span></span>(<span>self, username=None, password=None)</span>
 </code></dt>
@@ -835,6 +582,311 @@ looks for password in VAST_PASSWORD env variable or uses
             raise Unauthorized(&#34;Error logging in as %s.&#34;%username)</code></pre>
 </details>
 </dd>
+<dt id="vastai.api.VastClient.get_instance"><code class="name flex">
+<span>def <span class="ident">get_instance</span></span>(<span>self, id)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_instance(self, id):
+    self.get_instances()
+    idx = self.instance_ids.index(id)
+    return self.instances[idx] if idx &gt;= 0 else None</code></pre>
+</details>
+</dd>
+<dt id="vastai.api.VastClient.get_instances"><code class="name flex">
+<span>def <span class="ident">get_instances</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Retrievs a list of user's configured instances.
+Returns:
+:<code>list</code>: of :obj:<a title="vastai.api.Instance" href="#vastai.api.Instance"><code>Instance</code></a>: A list of configured Instances.
+Raises:
+ApiKeyNotSet: if user.api_key is not set.</p></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_instances(self):
+    &#34;&#34;&#34; Retrievs a list of user&#39;s configured instances.
+    Returns: 
+        :`list`: of :obj:`Instance`: A list of configured Instances. 
+    Raises: 
+        ApiKeyNotSet: if user.api_key is not set.
+    &#34;&#34;&#34;
+    if self.api_key is None: raise ApiKeyNotSet()
+    
+    req_url = self._apiurl(&#34;/instances&#34;, owner=&#34;me&#34;);
+    r = requests.get(req_url);
+    r.raise_for_status()
+    # print(json.dumps(r.json()))
+    instances = r.json()[&#34;instances&#34;]
+    self.instance_ids = [instance[&#39;id&#39;] for instance in instances]
+    self.instances = InstanceList([Instance(self, **instance) for instance in instances])
+    return self.instances</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="vastai.api.InstanceList"><code class="flex name class">
+<span>class <span class="ident">InstanceList</span></span>
+<span>(</span><span>*args, **kwargs)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>A list of Instances, returned by <a title="vastai.api.VastClient.get_instances" href="#vastai.api.VastClient.get_instances"><code>VastClient.get_instances()</code></a></p></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class InstanceList(list):
+    &#34;&#34;&#34; A list of Instances, returned by `VastClient.get_instances()`
+    &#34;&#34;&#34;
+    def __dict__(self):
+        return {i.id:i.__dict__() for i in self}
+    def __json__(self):
+        return json.dumps([i.__dict__() for i in self])
+    def __repr__(self):
+        return _grab_display_table_out(self)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.list</li>
+</ul>
+</dd>
+<dt id="vastai.api.Instance"><code class="flex name class">
+<span>class <span class="ident">Instance</span></span>
+<span>(</span><span>client, **kwargs)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Vast.ai Instance, instantiated by <a title="vastai.api.VastClient.get_instances" href="#vastai.api.VastClient.get_instances"><code>VastClient.get_instances()</code></a>.
+TODO: List Instance params</p>
+<h2 id="params">Params</h2>
+<dl>
+<dt><strong><code>client</code></strong> :&ensp;<a title="vastai.api.VastClient" href="#vastai.api.VastClient"><code>VastClient</code></a></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>**kwargs</code></strong></dt>
+<dd>&nbsp;</dd>
+</dl></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Instance:
+    def __init__(self, client, **kwargs):
+        &#34;&#34;&#34; Vast.ai Instance, instantiated by `VastClient.get_instances()`.
+            TODO: List Instance params
+        Params:
+            client (VastClient): 
+            **kwargs
+        &#34;&#34;&#34;
+        self.fields=[]
+        self.client = client
+        for key in kwargs.keys():
+            setattr(self, key, kwargs[key])
+            self.fields.append(key)
+        self.status = self.actual_status if hasattr(self, &#39;actual_status&#39;) else None
+
+    def __repr__(self):
+        return _grab_display_table_out([self])
+
+    def __dict__(self):
+        return {k:getattr(self,k) for k in self.fields}
+
+    def __json__(self):
+        return json.dumps(self.__dict__())
+
+    def get(self, attr, default=None):
+        &#34;&#34;&#34; Gets a specified attribute from this Instance. 
+            Used by vastai.vast.display_table.
+        &#34;&#34;&#34;
+        return getattr(self, attr) if hasattr(self, attr) else default
+
+    def _request(self, method, json_data):
+        &#34;&#34;&#34; Make http request to `&lt;api_base_url&gt;/instances/&lt;instance.id&gt;/` 
+        Params:
+            method (str): HTTP request method.
+            json_data (json): JSON data to send in request body.
+        Raises:
+            InstanceError: if request doesn&#39;t return data[&#39;success&#39;]
+        &#34;&#34;&#34;
+        assert type(method) is str
+        assert method.lower() in [&#39;get&#39;, &#39;put&#39;, &#39;post&#39;, &#39;update&#39;, &#39;delete&#39;]
+        url = self.client._apiurl(&#34;/instances/%s/&#34;%self.id)
+        resp = requests.request(method, url, json=json_data)
+        resp.raise_for_status()
+        if resp.status_code == 200:
+            resp_data = resp.json()
+            if resp_data[&#39;success&#39;]:
+                logging.info(json.dumps(resp_data))
+                return resp_data
+            else:
+                logging.debug(json.dumps(resp_data))
+                raise InstanceError(resp_data[&#39;msg&#39;], self.id)
+        else:
+            logging.debug(resp)
+            raise InstanceError(resp, self.id)
+        
+    def start(self):
+        &#34;&#34;&#34; Starts this configured instance.
+        Raises: 
+            InstanceError: if request doesn&#39;t return data[&#39;success&#39;]
+        &#34;&#34;&#34;
+        self._request(&#39;put&#39;,{ &#34;state&#34;: &#34;running&#34; })
+        print(&#34;Starting instance %i.&#34;%self.id )
+
+    def stop(self):
+        &#34;&#34;&#34; Stops this configured instance. You can restart the instance later. 
+        Raises: 
+            InstanceError: if request doesn&#39;t return data[&#39;success&#39;]
+        &#34;&#34;&#34;
+        self._request(&#39;put&#39;, {&#34;state&#34;: &#34;stopped&#34;})
+        print(&#34;Stopping instance %i.&#34;%self.id )
+
+    def destroy(self):
+        &#34;&#34;&#34; Destroys this configured instance. All data on the remote instance will be lost.
+        Raises: 
+            InstanceError: if request doesn&#39;t return data[&#39;success&#39;]
+        &#34;&#34;&#34;
+        self._request(&#39;delete&#39;,{})
+        print(&#34;Destroying instance %s&#34;%self.id)
+            
+    def run_command(self, command_str):
+        &#34;&#34;&#34;
+            Uses paramiko ssh client to execute `command_str` on this remote Instance.
+        Params:
+            
+        &#34;&#34;&#34;
+        ssh_client = SSHClient()
+        ssh_client.set_missing_host_key_policy(AutoAddPolicy)
+        print(&#34;Connecting to %s:%i &#34;%(self.ssh_host,self.ssh_port))
+        try:
+            ssh_client.connect(self.ssh_host, port=int(self.ssh_port), 
+                       username=&#39;root&#39;, key_filename=self.client.get_ssh_key_file())
+            print(&#34;Running command &#39;%s&#39;&#34;%command_str)
+            stdin, stdout, stderr = ssh_client.exec_command(command_str)
+            print(stdout.read().decode(&#39;utf-8&#39;))
+            print(stderr.read().decode(&#39;utf-8&#39;))
+    
+        # except NoValidConnectionsError as err:
+        #     raise InstanceError(self.id, err.errors)
+        finally:
+            ssh_client.close()</code></pre>
+</details>
+<h3>Methods</h3>
+<dl>
+<dt id="vastai.api.Instance.get"><code class="name flex">
+<span>def <span class="ident">get</span></span>(<span>self, attr, default=None)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Gets a specified attribute from this Instance.
+Used by vastai.vast.display_table.</p></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get(self, attr, default=None):
+    &#34;&#34;&#34; Gets a specified attribute from this Instance. 
+        Used by vastai.vast.display_table.
+    &#34;&#34;&#34;
+    return getattr(self, attr) if hasattr(self, attr) else default</code></pre>
+</details>
+</dd>
+<dt id="vastai.api.Instance.start"><code class="name flex">
+<span>def <span class="ident">start</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Starts this configured instance.
+Raises:
+InstanceError: if request doesn't return data['success']</p></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def start(self):
+    &#34;&#34;&#34; Starts this configured instance.
+    Raises: 
+        InstanceError: if request doesn&#39;t return data[&#39;success&#39;]
+    &#34;&#34;&#34;
+    self._request(&#39;put&#39;,{ &#34;state&#34;: &#34;running&#34; })
+    print(&#34;Starting instance %i.&#34;%self.id )</code></pre>
+</details>
+</dd>
+<dt id="vastai.api.Instance.stop"><code class="name flex">
+<span>def <span class="ident">stop</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Stops this configured instance. You can restart the instance later.
+Raises:
+InstanceError: if request doesn't return data['success']</p></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def stop(self):
+    &#34;&#34;&#34; Stops this configured instance. You can restart the instance later. 
+    Raises: 
+        InstanceError: if request doesn&#39;t return data[&#39;success&#39;]
+    &#34;&#34;&#34;
+    self._request(&#39;put&#39;, {&#34;state&#34;: &#34;stopped&#34;})
+    print(&#34;Stopping instance %i.&#34;%self.id )</code></pre>
+</details>
+</dd>
+<dt id="vastai.api.Instance.destroy"><code class="name flex">
+<span>def <span class="ident">destroy</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Destroys this configured instance. All data on the remote instance will be lost.
+Raises:
+InstanceError: if request doesn't return data['success']</p></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def destroy(self):
+    &#34;&#34;&#34; Destroys this configured instance. All data on the remote instance will be lost.
+    Raises: 
+        InstanceError: if request doesn&#39;t return data[&#39;success&#39;]
+    &#34;&#34;&#34;
+    self._request(&#39;delete&#39;,{})
+    print(&#34;Destroying instance %s&#34;%self.id)</code></pre>
+</details>
+</dd>
+<dt id="vastai.api.Instance.run_command"><code class="name flex">
+<span>def <span class="ident">run_command</span></span>(<span>self, command_str)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Uses paramiko ssh client to execute <code>command_str</code> on this remote Instance.
+Params:</p></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def run_command(self, command_str):
+    &#34;&#34;&#34;
+        Uses paramiko ssh client to execute `command_str` on this remote Instance.
+    Params:
+        
+    &#34;&#34;&#34;
+    ssh_client = SSHClient()
+    ssh_client.set_missing_host_key_policy(AutoAddPolicy)
+    print(&#34;Connecting to %s:%i &#34;%(self.ssh_host,self.ssh_port))
+    try:
+        ssh_client.connect(self.ssh_host, port=int(self.ssh_port), 
+                   username=&#39;root&#39;, key_filename=self.client.get_ssh_key_file())
+        print(&#34;Running command &#39;%s&#39;&#34;%command_str)
+        stdin, stdout, stderr = ssh_client.exec_command(command_str)
+        print(stdout.read().decode(&#39;utf-8&#39;))
+        print(stderr.read().decode(&#39;utf-8&#39;))
+
+    # except NoValidConnectionsError as err:
+    #     raise InstanceError(self.id, err.errors)
+    finally:
+        ssh_client.close()</code></pre>
+</details>
+</dd>
 </dl>
 </dd>
 </dl>
@@ -854,20 +906,24 @@ looks for password in VAST_PASSWORD env variable or uses
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="vastai.api.Instance" href="#vastai.api.Instance">Instance</a></code></h4>
+<h4><code><a title="vastai.api.VastClient" href="#vastai.api.VastClient">VastClient</a></code></h4>
 <ul class="">
-<li><code><a title="vastai.api.Instance.run_command" href="#vastai.api.Instance.run_command">run_command</a></code></li>
-<li><code><a title="vastai.api.Instance.stop" href="#vastai.api.Instance.stop">stop</a></code></li>
-<li><code><a title="vastai.api.Instance.destroy" href="#vastai.api.Instance.destroy">destroy</a></code></li>
-<li><code><a title="vastai.api.Instance.start" href="#vastai.api.Instance.start">start</a></code></li>
+<li><code><a title="vastai.api.VastClient.authenticate" href="#vastai.api.VastClient.authenticate">authenticate</a></code></li>
+<li><code><a title="vastai.api.VastClient.get_instance" href="#vastai.api.VastClient.get_instance">get_instance</a></code></li>
+<li><code><a title="vastai.api.VastClient.get_instances" href="#vastai.api.VastClient.get_instances">get_instances</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="vastai.api.VastClient" href="#vastai.api.VastClient">VastClient</a></code></h4>
+<h4><code><a title="vastai.api.InstanceList" href="#vastai.api.InstanceList">InstanceList</a></code></h4>
+</li>
+<li>
+<h4><code><a title="vastai.api.Instance" href="#vastai.api.Instance">Instance</a></code></h4>
 <ul class="">
-<li><code><a title="vastai.api.VastClient.get_instances" href="#vastai.api.VastClient.get_instances">get_instances</a></code></li>
-<li><code><a title="vastai.api.VastClient.get_instance" href="#vastai.api.VastClient.get_instance">get_instance</a></code></li>
-<li><code><a title="vastai.api.VastClient.authenticate" href="#vastai.api.VastClient.authenticate">authenticate</a></code></li>
+<li><code><a title="vastai.api.Instance.get" href="#vastai.api.Instance.get">get</a></code></li>
+<li><code><a title="vastai.api.Instance.start" href="#vastai.api.Instance.start">start</a></code></li>
+<li><code><a title="vastai.api.Instance.stop" href="#vastai.api.Instance.stop">stop</a></code></li>
+<li><code><a title="vastai.api.Instance.destroy" href="#vastai.api.Instance.destroy">destroy</a></code></li>
+<li><code><a title="vastai.api.Instance.run_command" href="#vastai.api.Instance.run_command">run_command</a></code></li>
 </ul>
 </li>
 </ul>

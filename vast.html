@@ -1,0 +1,2410 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.7.1" />
+<title>vastai.vast API documentation</title>
+<meta name="description" content="" />
+<link href='https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.0/normalize.min.css' rel='stylesheet'>
+<link href='https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/8.0.0/sanitize.min.css' rel='stylesheet'>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css" rel="stylesheet">
+<style>.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{font-weight:bold}#index h4 + ul{margin-bottom:.6em}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>vastai.vast</code></h1>
+</header>
+<section id="section-intro">
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">#!/usr/bin/env python3
+
+from __future__ import unicode_literals, print_function
+
+import re
+import json
+import sys
+import argparse
+import os
+import requests
+import getpass
+
+
+
+try:
+    from urllib import quote_plus  # Python 2.X
+except ImportError:
+    from urllib.parse import quote_plus  # Python 3+
+
+
+try:
+    JSONDecodeError = json.JSONDecodeError
+except AttributeError:
+    JSONDecodeError = ValueError
+
+try:
+    input = raw_input
+except NameError:
+    pass
+
+server_url_default = &#34;https://vast.ai/api/v0&#34;
+api_key_file_base = &#34;~/.vast_api_key&#34;
+api_key_file = os.path.expanduser(api_key_file_base)
+api_key_guard = object()
+
+class argument(object):
+    def __init__(self, *args, **kwargs):
+        self.args = args
+        self.kwargs = kwargs
+
+class hidden_aliases(object):
+    # just a bit of a hack
+    def __init__(self, l):
+        self.l = l
+    def __iter__(self):
+        return iter(self.l)
+    def __bool__(self):
+        return False
+    def __nonzero__(self):
+        return False
+    def append(self,x):
+        self.l.append(x)
+
+class apwrap(object):
+    def __init__(self, *args, **kwargs):
+        kwargs[&#34;formatter_class&#34;] = argparse.RawDescriptionHelpFormatter
+        self.parser = argparse.ArgumentParser(*args, **kwargs)
+        self.parser.set_defaults(func=self.fail_with_help)
+        self.subparsers_ = None
+        self.subparser_objs = []
+        self.added_help_cmd = False
+        self.post_setup = []
+        self.verbs = set()
+        self.objs = set()
+
+    def fail_with_help(self, *a, **kw):
+        self.parser.print_help(sys.stderr)
+        raise SystemExit
+
+    def add_argument(self, *a, **kw):
+        if not kw.get(&#34;parent_only&#34;):
+            for x in self.subparser_objs:
+                try:
+                    x.add_argument(*a, **kw)
+                except argparse.ArgumentError:
+                    # duplicate - or maybe other things, hopefully not
+                    pass
+        return self.parser.add_argument(*a, **kw)
+
+    def subparsers(self, *a, **kw):
+        if self.subparsers_ is None:
+            kw[&#34;metavar&#34;] = &#34;command&#34;
+            kw[&#34;help&#34;] = &#34;command to run. one of:&#34;
+            self.subparsers_ = self.parser.add_subparsers(*a, **kw)
+        return self.subparsers_
+
+    def get_name(self, verb, obj):
+        if obj:
+            self.verbs.add(verb)
+            self.objs.add(obj)
+            name = verb + &#39; &#39; + obj
+        else:
+            self.objs.add(verb)
+            name = verb
+        return name
+
+    def command(self, *arguments, aliases=(), help=None, **kwargs):
+        help_ = help
+        if not self.added_help_cmd:
+            self.added_help_cmd = True
+
+            @self.command(argument(&#34;subcommand&#34;, default=None, nargs=&#34;?&#34;), help=&#34;print this help message&#34;)
+            def help(*a, **kw):
+                self.fail_with_help()
+
+        def inner(func):
+            dashed_name = func.__name__.replace(&#34;_&#34;, &#34;-&#34;)
+            verb, _, obj = dashed_name.partition(&#34;--&#34;)
+            name = self.get_name(verb, obj)
+            aliases_transformed = [] if aliases else hidden_aliases([])
+            for x in aliases:
+                verb, _, obj = x.partition(&#34; &#34;)
+                aliases_transformed.append(self.get_name(verb, obj))
+            kwargs[&#34;formatter_class&#34;] =argparse.RawDescriptionHelpFormatter
+            sp = self.subparsers().add_parser(name, aliases=aliases_transformed, help=help_, **kwargs)
+            self.subparser_objs.append(sp)
+            for arg in arguments:
+                sp.add_argument(*arg.args, **arg.kwargs)
+            sp.set_defaults(func=func)
+            return func
+        if len(arguments) == 1 and type(arguments[0]) != argument:
+            func = arguments[0]
+            arguments = []
+            return inner(func)
+        return inner
+
+    def parse_args(self, argv=None, *a, **kw):
+        if argv is None:
+            argv = sys.argv[1:]
+        argv_ = []
+        for x in argv:
+            if argv_ and argv_[-1] in self.verbs:
+                argv_[-1] += &#34; &#34; + x
+            else:
+                argv_.append(x)
+        args = self.parser.parse_args(argv_, *a, **kw)
+        for func in self.post_setup:
+            func(args)
+        return args
+
+parser = apwrap()
+
+def apiurl(args, subpath, query_args=None):
+    if query_args is None:
+        query_args = {}
+    if args.api_key is not None:
+        query_args[&#34;api_key&#34;] = args.api_key
+    if query_args:
+        #a_list      = [&lt;expression&gt; for &lt;l-expression&gt; in &lt;expression&gt;]
+        &#39;&#39;&#39;
+        vector result;
+        for (l_expression: expression) {
+            result.push_back(expression);
+        }
+        &#39;&#39;&#39;
+        #an_iterator = (&lt;expression&gt; for &lt;l-expression&gt; in &lt;expression&gt;)
+        return args.url + subpath + &#34;?&#34; + &#34;&amp;&#34;.join(
+                &#34;{x}={y}&#34;.format(x=x, y=quote_plus(y if isinstance(y, str) else json.dumps(y))) for x, y in query_args.items())
+    else:
+        return args.url + subpath
+
+def deindent(message):
+    &#34;&#34;&#34;
+    deindent a quoted string
+    &#34;&#34;&#34;
+    message = re.sub(r&#34; *$&#34;, &#34;&#34;, message, flags=re.MULTILINE)
+    indents = [len(x) for x in re.findall(&#34;^ *(?=[^ ])&#34;, message, re.MULTILINE) if len(x)]
+    a = min(indents)
+    message = re.sub(r&#34;^ {,&#34; + str(a) + &#34;}&#34;, &#34;&#34;, message, flags=re.MULTILINE)
+    return message.strip()
+
+displayable_fields = (
+    (&#34;id&#34;,                  &#34;ID&#34;,       &#34;{}&#34;,       None, True),
+    (&#34;cuda_max_good&#34;,       &#34;CUDA&#34;,     &#34;{:0.1f}&#34;,  None, True),
+    (&#34;num_gpus&#34;,            &#34;Num&#34;,      &#34;{} x&#34;,     None, False),
+    (&#34;gpu_name&#34;,            &#34;Model&#34;,    &#34;{}&#34;,       None, True),
+    (&#34;pcie_bw&#34;,             &#34;PCIE BW&#34;,  &#34;{:0.1f}&#34;,  None, True),
+    (&#34;cpu_cores_effective&#34;, &#34;vCPUs&#34;,    &#34;{:0.1f}&#34;,  None, True),
+    (&#34;cpu_ram&#34;,             &#34;RAM&#34;,      &#34;{:0.1f}&#34;,  lambda x: x/1000, False),
+    (&#34;disk_space&#34;,          &#34;Storage&#34;,  &#34;{:.0f}&#34;,     None, True),
+    (&#34;dph_total&#34;,           &#34;$/hr&#34;,     &#34;{:0.4f}&#34;,  None, True),
+    (&#34;dlperf&#34;,              &#34;DLPerf&#34;,   &#34;{:0.1f}&#34;,   None, True),
+    (&#34;dlperf_per_dphtotal&#34;, &#34;DLP/$&#34;,    &#34;{:0.1f}&#34;,   None, True),
+    (&#34;inet_up&#34;,             &#34;Net up&#34;,   &#34;{:0.1f}&#34;,   None, True),
+    (&#34;inet_down&#34;,           &#34;Net down&#34;, &#34;{:0.1f}&#34;,   None, True),
+    (&#34;reliability2&#34;,        &#34;R&#34;,        &#34;{:0.1f}&#34;,   lambda x: x * 100, True),
+    (&#34;duration&#34;,            &#34;Max Days&#34;, &#34;{:0.1f}&#34;,   lambda x: x/(24.0*60.0*60.0), True),
+)
+
+instance_fields = (
+    (&#34;id&#34;,                  &#34;ID&#34;,       &#34;{}&#34;,       None, True),
+    (&#34;machine_id&#34;,          &#34;Machine&#34;,  &#34;{}&#34;,       None, True),
+    (&#34;actual_status&#34;,       &#34;Status&#34;,   &#34;{}&#34;,       None, True),
+    (&#34;num_gpus&#34;,            &#34;Num&#34;,      &#34;{} x&#34;,     None, False),
+    (&#34;gpu_name&#34;,            &#34;Model&#34;,    &#34;{}&#34;,       None, True),
+    (&#34;gpu_util&#34;,            &#34;Util. %&#34;,  &#34;{:0.1f}&#34;,  None, True),
+    (&#34;cpu_cores_effective&#34;, &#34;vCPUs&#34;,    &#34;{:0.1f}&#34;,  None, True),
+    (&#34;cpu_ram&#34;,             &#34;RAM&#34;,      &#34;{:0.1f}&#34;,  lambda x: x/1000, False),
+    (&#34;disk_space&#34;,          &#34;Storage&#34;,  &#34;{:.0f}&#34;,     None, True),
+    (&#34;ssh_host&#34;,            &#34;SSH Addr&#34;, &#34;{}&#34;,       None, True),
+    (&#34;ssh_port&#34;,            &#34;SSH Port&#34;, &#34;{}&#34;,       None, True),
+    (&#34;dph_total&#34;,           &#34;$/hr&#34;,     &#34;{:0.4f}&#34;,  None, True),
+    (&#34;image_uuid&#34;,          &#34;Image&#34;,    &#34;{}&#34;,       None, True),
+
+    #(&#34;dlperf&#34;,              &#34;DLPerf&#34;,   &#34;{:0.1f}&#34;,  None, True),
+    #(&#34;dlperf_per_dphtotal&#34;, &#34;DLP/$&#34;,    &#34;{:0.1f}&#34;,  None, True),
+    (&#34;inet_up&#34;,             &#34;Net up&#34;,   &#34;{:0.1f}&#34;,  None, True),
+    (&#34;inet_down&#34;,           &#34;Net down&#34;, &#34;{:0.1f}&#34;,  None, True),
+    (&#34;reliability2&#34;,        &#34;R&#34;,        &#34;{:0.1f}&#34;,  lambda x: x * 100, True),
+    #(&#34;duration&#34;,            &#34;Max Days&#34;, &#34;{:0.1f}&#34;,  lambda x: x/(24.0*60.0*60.0), True),
+)
+
+def parse_query(query_str, res=None):
+    if res is None: res = {}
+    if type(query_str) == list:
+        query_str = &#34; &#34;.join(query_str)
+    query_str = query_str.strip()
+    opts = re.findall(&#34;([a-zA-Z0-9_]+)( *[=&gt;&lt;!]+| +(?:[lg]te?|nin|neq|eq|not ?eq|not ?in|in) )?( *)(\[[^\]]+\]|[^ ]+)?( *)&#34;, query_str)
+    #res = {}
+    op_names = {
+        &#34;&gt;=&#34;: &#34;gte&#34;,
+        &#34;&gt;&#34;: &#34;gt&#34;,
+        &#34;gt&#34;: &#34;gt&#34;,
+        &#34;gte&#34;: &#34;gte&#34;,
+        &#34;&lt;=&#34;: &#34;lte&#34;,
+        &#34;&lt;&#34;: &#34;lt&#34;,
+        &#34;lt&#34;: &#34;lt&#34;,
+        &#34;lte&#34;: &#34;lte&#34;,
+        &#34;!=&#34;: &#34;neq&#34;,
+        &#34;==&#34;: &#34;eq&#34;,
+        &#34;=&#34;: &#34;eq&#34;,
+        &#34;eq&#34;: &#34;eq&#34;,
+        &#34;neq&#34;: &#34;neq&#34;,
+        &#34;noteq&#34;: &#34;neq&#34;,
+        &#34;not eq&#34;: &#34;neq&#34;,
+        &#34;notin&#34;: &#34;notin&#34;,
+        &#34;not in&#34;: &#34;notin&#34;,
+        &#34;nin&#34;: &#34;notin&#34;,
+        &#34;in&#34;: &#34;in&#34;,
+    };
+    
+    field_alias = {
+        &#34;cuda_vers&#34;:        &#34;cuda_max_good&#34;,
+        &#34;display_active&#34;:   &#34;gpu_display_active&#34;,
+        &#34;reliability&#34;:      &#34;reliability2&#34;,
+        &#34;dlperf_usd&#34;:       &#34;dlperf_per_dphtotal&#34;,
+        &#34;dph&#34;:              &#34;dph_total&#34;,
+        &#34;flops_usd&#34;:        &#34;flops_per_dphtotal&#34;,
+    };
+    
+    field_multiplier = {
+        &#34;cpu_ram&#34;   : 1000,
+        &#34;duration&#34;  : 1.0 / (24.0*60.0*60.0),
+    }
+    
+    fields = {
+        &#34;compute_cap&#34;,
+        &#34;cpu_cores&#34;,
+        &#34;cpu_cores_effective&#34;,
+        &#34;cpu_ram&#34;,
+        &#34;cuda_max_good&#34;,
+        &#34;disk_bw&#34;,
+        &#34;disk_space&#34;,
+        &#34;dlperf&#34;,
+        &#34;dlperf_per_dphtotal&#34;
+        &#34;dph_total&#34;,
+        &#34;duration&#34;,
+        &#34;external&#34;,
+        &#34;flops_per_dphtotal&#34;,
+        &#34;gpu_display_active&#34;,
+        #&#34;gpu_ram_free_min&#34;,
+        &#34;gpu_mem_bw&#34;,
+        &#34;gpu_name&#34;,
+        &#34;gpu_ram&#34;,
+        &#34;has_avx&#34;,
+        &#34;host_id&#34;,
+        &#34;id&#34;,
+        &#34;inet_down&#34;,
+        &#34;inet_down_cost&#34;,
+        &#34;inet_up&#34;,
+        &#34;inet_up_cost&#34;,
+        &#34;min_bid&#34;,
+        &#34;mobo_name&#34;,
+        &#34;num_gpus&#34;,
+        &#34;pci_gen&#34;,
+        &#34;pcie_bw&#34;,
+        &#34;reliability2&#34;,
+        &#34;rentable&#34;,
+        &#34;rented&#34;,
+        &#34;storage_cost&#34;,
+        &#34;total_flops&#34;,
+        &#34;verified&#34;
+    };
+    
+    joined = &#34;&#34;.join(&#34;&#34;.join(x) for x in opts)
+    if joined != query_str:
+        raise ValueError(&#34;Unconsumed text. Did you forget to quote your query? &#34; + repr(joined) + &#34; != &#34; + repr(query_str))
+    for field, op, _, value, _ in opts:
+        value = value.strip(&#34;,[]&#34;)
+        v = res.setdefault(field, {})
+        op = op.strip()
+        op_name = op_names.get(op)
+        
+        if field in field_alias:
+            field = field_alias[field];
+            
+        
+        if not field in fields:
+            print(&#34;Warning: Unrecognized field: {}, see list of recognized fields.&#34;.format(field), file=sys.stderr);
+        if not op_name:
+            raise ValueError(&#34;Unknown operator. Did you forget to quote your query? &#34; + repr(op).strip(&#34;u&#34;))
+        if op_name in [&#34;in&#34;, &#34;notin&#34;]:
+            value = [x.strip() for x in value.split(&#34;,&#34;) if x.strip()]
+        if not value:
+            raise ValueError(&#34;Value cannot be blank. Did you forget to quote your query? &#34; + repr((field, op, value)))
+        if not field:
+            raise ValueError(&#34;Field cannot be blank. Did you forget to quote your query? &#34; + repr((field, op, value)))
+        if value in [&#34;?&#34;, &#34;*&#34;, &#34;any&#34;]:
+            if op_name != &#34;eq&#34;:
+                raise ValueError(&#34;Wildcard only makes sense with equals.&#34;)
+            if field in v:
+                del v[field]
+            if field in res:
+                del res[field]
+            continue
+
+        if field in field_multiplier:
+            value = str(float(value) * field_multiplier[field]);
+
+        v[op_name] = value
+        res[field] = v;
+    return res
+
+def display_table(rows, fields):
+    header = [name for _, name, _, _, _ in fields]
+    out_rows = [header]
+    lengths = [len(x) for x in header]
+    for instance in rows:
+        row = []
+        out_rows.append(row)
+        for key, name, fmt, conv, _ in fields:
+            conv = conv or (lambda x: x)
+            val = instance.get(key, None)
+            if val is None:
+                s = &#34;-&#34;
+            else:
+                val = conv(val)
+                s = fmt.format(val)
+            idx = len(row)
+            lengths[idx] = max(len(s), lengths[idx])
+            row.append(s)
+    for row in out_rows:
+        out = []
+        for l, s, f in zip(lengths, row, fields):
+            _, _, _, _, ljust = f
+            if ljust:
+                s = s.ljust(l)
+            else:
+                s = s.rjust(l)
+            out.append(s)
+        print(&#34;  &#34;.join(out))
+
+@parser.command(
+    argument(&#34;-t&#34;, &#34;--type&#34;, default=&#34;on-demand&#34;, help=&#34;whether to show `interruptible` or `on-demand` offers. default: on-demand&#34;),
+    argument(&#34;-i&#34;, &#34;--interruptible&#34;, dest=&#34;type&#34;, const=&#34;interruptible&#34;, action=&#34;store_const&#34;, help=&#34;Alias for --type=interruptible&#34;),
+    argument(&#34;-d&#34;, &#34;--on-demand&#34;, dest=&#34;type&#34;, const=&#34;on-demand&#34;, action=&#34;store_const&#34;, help=&#34;Alias for --type=on-demand&#34;),
+    argument(&#34;-n&#34;, &#34;--no-default&#34;, action=&#34;store_true&#34;, help=&#34;Disable default query&#34;),
+    argument(&#34;--disable-bundling&#34;, action=&#34;store_true&#34;, help=&#34;Show identical offers. This request is more heavily rate limited.&#34;),
+    argument(&#34;--storage&#34;, type=float, default=5.0, help=&#34;amount of storage to use for pricing, in GiB. default=5.0GiB&#34;),
+    argument(&#34;-o&#34;, &#34;--order&#34;, type=str, help=&#34;comma-separated list of fields to sort on. postfix field with - to sort desc. ex: -o &#39;num_gpus,total_flops-&#39;.  default=&#39;score-&#39;&#34;, default=&#39;score-&#39;),
+    argument(&#34;query&#34;,            help=&#34;Query to search for. default: &#39;external=false rentable=true verified=true&#39;, pass -n to ignore default&#34;, nargs=&#34;*&#34;, default=None),
+    usage=&#34;vast search offers [--help] [--api-key API_KEY] [--raw] &lt;query&gt;&#34;,
+    epilog=deindent(&#34;&#34;&#34;
+        Query syntax:
+        
+            query = comparison comparison...
+            comparison = field op value
+            field = &lt;name of a field&gt;
+            op = one of: &lt;, &lt;=, ==, !=, &gt;=, &gt;, in, notin
+            value = &lt;bool, int, float, etc&gt; | &#39;any&#39;
+        
+        note: to pass &#39;&gt;&#39; and &#39;&lt;&#39; on the command line, make sure to use quotes
+
+           
+        Examples:
+        
+            ./vast search offers &#39;compute_cap &gt; 610 total_flops &lt; 5&#39;
+            ./vast search offers &#39;reliability &gt; 0.99  num_gpus&gt;=4&#39; -o &#39;num_gpus-&#39;
+            ./vast search offers &#39;rentable = any&#39;
+       
+        Available fields:
+            
+              Name                  Type       Description
+
+            compute_cap:            int       cuda compute capability*100  (ie:  650 for 6.5, 700 for 7.0)
+            cpu_cores:              int       # virtual cpus
+            cpu_cores_effective:    float     # virtual cpus you get
+            cpu_ram:                float     system RAM in gigabytes
+            cuda_vers:              float     cuda version
+            disk_bw:                float     disk read bandwidth, in MB/s
+            disk_space:             float     disk storage space, in GB
+            dlperf:                 float     DL-perf score  (see FAQ for explanation)
+            dlperf_usd:             float     DL-perf/$
+            dph:                    float     $/hour rental cost
+            duration:               float     max rental duration in days
+            external:               bool      show external offers
+            flops_usd:              float     TFLOPs/$
+            gpu_mem_bw:             float     GPU memory bandwidth in GB/s
+            gpu_ram:                float     GPU RAM in GB
+            gpu_frac:               float     Ratio of GPUs in the offer to gpus in the system
+            has_avx:                bool      CPU supports AVX instruction set.
+            id:                     int       instance unique ID
+            inet_down:              float     internet download speed in Mb/s
+            inet_down_cost:         float     internet download bandwidth cost in $/GB
+            inet_up:                float     internet upload speed in Mb/s
+            inet_up_cost:           float     internet upload bandwidth cost in $/GB
+            min_bid:                float     current minimum bid price in $/hr for interruptible
+            num_gpus:               int       # of GPUs
+            pci_gen:                float     PCIE generation
+            pcie_bw:                float     PCIE bandwidth (CPU to GPU)
+            reliability:            float     machine reliability score (see FAQ for explanation)
+            rentable:               bool      is the instance currently rentable
+            rented:                 bool      is the instance currently rented
+            storage_cost:           float     storage cost in $/GB/month
+            total_flops:            float     total TFLOPs from all GPUs
+            verified:               bool      is the machine verified
+    &#34;&#34;&#34;),
+    aliases=hidden_aliases([&#34;search instances&#34;]),
+)
+def search__offers(args):
+    field_alias = {
+        &#34;cuda_vers&#34;     : &#34;cuda_max_good&#34;,
+        &#34;reliability&#34;   : &#34;reliability2&#34;,
+        &#34;dlperf_usd&#34;    : &#34;dlperf_per_dphtotal&#34;,
+        &#34;dph&#34;           : &#34;dph_total&#34;,
+        &#34;flops_usd&#34;     : &#34;flops_per_dphtotal&#34;,
+    };
+
+    try:
+
+        if args.no_default:
+            query = {}
+        else:
+            query = { &#34;verified&#34;:{&#34;eq&#34;:True}, &#34;external&#34;:{&#34;eq&#34;:False}, &#34;rentable&#34;:{&#34;eq&#34;:True} }
+    
+        if args.query is not None:
+            query = parse_query(args.query, query)
+        #print(&#34;query length: {}&#34;.format(len(query)));
+        #for k,q in query.items():
+            #print(&#34;{} {}&#34;.format(k, q));
+        order = []
+        for name in args.order.split(&#34;,&#34;):
+            name = name.strip()
+            if not name: continue
+            direction = &#34;asc&#34;
+            if name.strip(&#34;-&#34;) != name:
+                direction = &#34;desc&#34;
+            field = name.strip(&#34;-&#34;);
+            if field in field_alias:
+                field = field_alias[field];
+            order.append([field, direction])
+
+        query[&#34;order&#34;] = order
+        query[&#34;type&#34;]  = args.type
+        if args.disable_bundling:
+            query[&#34;disable_bundling&#34;] = True
+    except ValueError as e:
+        print(&#34;Error: &#34;, e)
+        return 1
+    
+    url = apiurl(args, &#34;/bundles&#34;, {&#34;q&#34;:query});
+    #url = apiurl(args, &#34;/bundles&#34;) + &#34;?q=&#34; + quote_plus(json.dumps(query));
+    r = requests.get(url);
+    r.raise_for_status()
+    rows = r.json()[&#34;offers&#34;]
+    if args.raw:
+        print(json.dumps(rows, indent=1, sort_keys=True))
+    else:
+        #print(url);
+        #print(&#34;{N} instances types: &#34;.format(N=len(rows)) );
+        display_table(rows, displayable_fields)
+
+
+@parser.command(
+    usage=&#34;vast show instances [--api-key API_KEY] [--raw]&#34;,
+)
+def show__instances(args):
+    req_url = apiurl(args, &#34;/instances&#34;, {&#34;owner&#34;: &#34;me&#34;});
+    r = requests.get(req_url);
+    r.raise_for_status()
+    rows = r.json()[&#34;instances&#34;]
+    if args.raw:
+        print(json.dumps(rows, indent=1, sort_keys=True))
+    else:
+        display_table(rows, instance_fields)
+        #print(&#34;{N} instances: &#34;.format(N=len(rows)) );
+        #print(&#34;%-10s%-10s%-12s%-5s%-14s%-7s%-7s%-8s%-10s%-14s%-10s%-8s%-12s&#34; % (&#34;Instance&#34;, &#34;Machine&#34;, &#34;Status&#34;, &#34;#&#34;, &#34;GPUs&#34;, &#34;util%&#34;, &#34;vCPUs&#34;, &#34;RAM&#34;, &#34;Storage&#34;, &#34;SSH Addr&#34;, &#34;SSH Port&#34;, &#34;$/hr&#34;, &#34;Image&#34;));
+        #for instance in rows:
+        #    gpu_util = 0;
+        #    if (instance[&#34;gpu_util&#34;] is not None): 
+        #        gpu_util = int(instance[&#34;gpu_util&#34;]);
+        #    cost = str(float(instance[&#34;dph_total&#34;]));
+        #    print(&#34;%-10s%-10s%-12s%-2s x %-16s%-6i%-5i%3iGB   %5iGB   %-16s%-9s%-8s%-12s&#34; % (instance[&#34;id&#34;], instance[&#34;machine_id&#34;], instance[&#34;actual_status&#34;], 1*instance[&#34;num_gpus&#34;], instance[&#34;gpu_name&#34;], gpu_util, int(instance[&#34;cpu_cores&#34;]), int(instance[&#34;cpu_ram&#34;])/1000, int(instance[&#34;disk_space&#34;]), instance[&#34;ssh_host&#34;], instance[&#34;ssh_port&#34;], cost[0:5], instance[&#34;image_uuid&#34;]));
+        #    #print(&#34;{id}: {json}&#34;.format(id=instance[&#34;id&#34;], json=json.dumps(instance, indent=4, sort_keys=True)))
+    
+
+@parser.command(
+    argument(&#34;-q&#34;, &#34;--quiet&#34;, action=&#34;store_true&#34;, help=&#34;only display numeric ids&#34;),
+    usage = &#34;vast show machines [OPTIONS]&#34;,
+)
+def show__machines(args):
+    req_url = apiurl(args, &#34;/machines&#34;, {&#34;owner&#34;: &#34;me&#34;});
+    r = requests.get(req_url);
+    r.raise_for_status()
+    rows = r.json()[&#34;machines&#34;]
+    if args.raw:
+        print(json.dumps(rows, indent=1, sort_keys=True))
+    else:
+        for machine in rows:
+            if args.quiet:
+                print(&#34;{id}&#34;.format(id=machine[&#34;id&#34;]))
+            else:
+                print(&#34;{N} machines: &#34;.format(N=len(rows)) );
+                print(&#34;{id}: {json}&#34;.format(id=machine[&#34;id&#34;], json=json.dumps(machine, indent=4, sort_keys=True)))
+
+
+@parser.command(
+    argument(&#34;id&#34;,                  help=&#34;id of machine to list&#34;, type=int),
+    argument(&#34;-g&#34;, &#34;--price_gpu&#34;,   help=&#34;per gpu rental price in $/hour  (price for active instances)&#34;, type=float),
+    argument(&#34;-s&#34;, &#34;--price_disk&#34;,  help=&#34;storage price in $/GB/month (price for inactive instances), default: $0.15/GB/month&#34;, type=float),
+    argument(&#34;-u&#34;, &#34;--price_inetu&#34;, help=&#34;price for internet upload bandwidth in $/GB&#34;, type=float),
+    argument(&#34;-d&#34;, &#34;--price_inetd&#34;, help=&#34;price for internet download bandwidth in $/GB&#34;, type=float),
+    usage = &#34;vast list machine id [--price_gpu PRICE_GPU] [--price_inetu PRICE_INETU] [--price_inetd PRICE_INETD] [--api-key API_KEY]&#34;,
+)
+def list__machine(args):
+    #req_url = args.url + &#34;/machines/create_asks/?user_id=&#34; + str(args.user);
+    req_url = apiurl(args, &#34;/machines/create_asks/&#34;);
+
+    #print(&#34;PUT &#34; + req_url);
+    r = requests.put(req_url, json = {&#39;machine&#39;:args.id, &#39;price_gpu&#39;:args.price_gpu, &#39;price_disk&#39;:args.price_disk, &#39;price_inetu&#39;:args.price_inetu, &#39;price_inetd&#39;:args.price_inetd } );
+    
+    if (r.status_code == 200) :
+        #print(r.text);
+        rj = r.json();
+        if (rj[&#34;success&#34;]) :
+            price_gpu_   = str(args.price_gpu) if args.price_gpu is not None else &#34;def&#34;;
+            price_inetu_ = str(args.price_inetu);
+            price_inetd_ = str(args.price_inetd);
+            print(&#34;offers created for machine {args.id},  @ ${price_gpu_}/gpu/day, ${price_inetu_}/GB up, ${price_inetd_}/GB down&#34;.format(**locals()));
+        else :
+            print(rj[&#34;msg&#34;]);
+    else :
+        print(r.text);
+        print(&#34;failed with error {r.status_code}&#34;.format(**locals()));
+
+
+@parser.command(
+    argument(&#34;id&#34;,          help=&#34;id of machine to list&#34;, type=int),
+    usage = &#34;vast unlist machine &lt;id&gt;&#34;,
+)
+def unlist__machine(args):
+    req_url = apiurl(args, &#34;/machines/{machine_id}/asks/&#34;.format(machine_id = args.id));
+    #req_url = args.url + &#34;/machines/{machine_id}/asks/&#34;.format(machine_id = args.id);
+    #print(req_url);
+    r = requests.delete(req_url);
+    
+    if (r.status_code == 200) :
+        #print(r.text);
+        rj = r.json();
+        if (rj[&#34;success&#34;]) :
+            print(&#34;all offers for machine {machine_id} removed, machine delisted.&#34;.format(machine_id = args.id));
+        else :
+            print(rj[&#34;msg&#34;]);
+    else :
+        print(r.text);
+        print(&#34;failed with error {r.status_code}&#34;.format(**locals()));
+
+
+@parser.command(
+    argument(&#34;id&#34;,          help=&#34;id of machine to remove default instance from&#34;, type=int),
+)
+def remove__defjob(args):
+
+    req_url = apiurl(args, &#34;/machines/{machine_id}/defjob/&#34;.format(machine_id = args.id));
+    #print(req_url);
+    r = requests.delete(req_url);
+    
+    if (r.status_code == 200) :
+        #print(r.text);
+        rj = r.json();
+        if (rj[&#34;success&#34;]) :
+            print(&#34;default instance for machine {machine_id} removed.&#34;.format(machine_id = args.id));
+        else :
+            print(rj[&#34;msg&#34;]);
+    else :
+        print(r.text);
+        print(&#34;failed with error {r.status_code}&#34;.format(**locals()));
+
+
+
+
+
+def set_ask(args):
+    print(&#34;set asks!\n&#34;);
+
+
+@parser.command(
+    argument(&#34;id&#34;,            help=&#34;id of instance to start/restart&#34;, type=int),
+    usage = &#34;vast start instance &lt;id&gt; [--raw]&#34;,
+)
+def start__instance(args):
+    url = apiurl(args, &#34;/instances/{id}/&#34;.format(id=args.id))
+    r = requests.put(url, json={
+        &#34;state&#34;: &#34;running&#34;
+    })
+    r.raise_for_status()
+
+    if (r.status_code == 200) :
+        rj = r.json();
+        if (rj[&#34;success&#34;]) :
+            print(&#34;starting instance {args.id}.&#34;.format(**(locals())) );
+        else :
+            print(rj[&#34;msg&#34;]);
+    else :
+        print(r.text);
+        print(&#34;failed with error {r.status_code}&#34;.format(**locals()));
+
+
+@parser.command(
+    argument(&#34;id&#34;,            help=&#34;id of instance to stop&#34;, type=int),
+    usage = &#34;vast stop instance [--raw] &lt;id&gt;&#34;,
+)
+def stop__instance(args):
+    url = apiurl(args, &#34;/instances/{id}/&#34;.format(id=args.id))
+    r = requests.put(url, json={
+        &#34;state&#34;: &#34;stopped&#34;
+    })
+    r.raise_for_status()
+
+    if (r.status_code == 200) :
+        rj = r.json();
+        if (rj[&#34;success&#34;]) :
+            print(&#34;stopping instance {args.id}.&#34;.format(**(locals())) );
+        else :
+            print(rj[&#34;msg&#34;]);
+    else :
+        print(r.text);
+        print(&#34;failed with error {r.status_code}&#34;.format(**locals()));
+
+@parser.command(
+    argument(&#34;id&#34;,            help=&#34;id of instance to label&#34;, type=int),
+    argument(&#34;label&#34;,         help=&#34;label to set&#34;, type=str),
+    usage = &#34;vast label instance &lt;id&gt; &lt;label&gt;&#34;,
+)
+def label__instance(args):
+    url = apiurl(args, &#34;/instances/{id}/&#34;.format(id=args.id))
+    r = requests.put(url, json={
+        &#34;label&#34;: args.label
+    })
+    r.raise_for_status()
+
+    rj = r.json();
+    if rj[&#34;success&#34;]:
+        print(&#34;label for {args.id} set to {args.label}.&#34;.format(**(locals())) );
+    else :
+        print(rj[&#34;msg&#34;]);
+
+
+@parser.command(
+    argument(&#34;id&#34;,            help=&#34;id of instance to delete&#34;, type=int),
+    usage=&#34;vast destroy instance id [-h] [--api-key API_KEY] [--raw]&#34;
+)
+def destroy__instance(args):
+    url = apiurl(args, &#34;/instances/{id}/&#34;.format(id=args.id))
+    r = requests.delete(url, json={})
+    r.raise_for_status()
+    
+
+    if (r.status_code == 200) :
+        rj = r.json();
+        if (rj[&#34;success&#34;]) :
+            print(&#34;destroying instance {args.id}.&#34;.format(**(locals())) );
+        else :
+            print(rj[&#34;msg&#34;]);
+    else :
+        print(r.text);
+        print(&#34;failed with error {r.status_code}&#34;.format(**locals()));
+
+
+        
+@parser.command(
+    argument(&#34;id&#34;,            help=&#34;id of machine to launch default instance on&#34;, type=int),
+    argument(&#34;--price_gpu&#34;,   help=&#34;per gpu rental price in $/hour&#34;, type=float),
+    argument(&#34;--price_inetu&#34;, help=&#34;price for internet upload bandwidth in $/GB&#34;, type=float),
+    argument(&#34;--price_inetd&#34;, help=&#34;price for internet download bandwidth in $/GB&#34;, type=float),
+    argument(&#34;--image&#34;,       help=&#34;docker container image to launch&#34;, type=str),
+    argument(&#34;--args&#34;,        nargs=argparse.REMAINDER, help=&#34;list of arguments passed to container launch&#34;),
+    usage=&#34;vast set defjob id [--api-key API_KEY] [--price_gpu PRICE_GPU] [--price_inetu PRICE_INETU] [--price_inetd PRICE_INETD] [--image IMAGE] [--args ...]&#34;
+)
+def set__defjob(args):
+    #req_url = args.url + &#34;/machines/create_asks/?user_id=&#34; + str(args.user);
+    req_url    = apiurl(args, &#34;/machines/create_bids/&#34;);
+
+    #print(&#34;PUT &#34; + req_url);
+    r = requests.put(req_url, json = 
+        {&#39;machine&#39;:args.id, &#39;price_gpu&#39;:args.price_gpu, &#39;price_inetu&#39;:args.price_inetu, &#39;price_inetd&#39;:args.price_inetd,
+         &#39;image&#39;:args.image, &#39;args&#39;:args.args } );
+    
+    if (r.status_code == 200) :
+        #print(r.text);
+        rj = r.json();
+        if (rj[&#34;success&#34;]) :
+            print(&#34;bids created for machine {args.id},  @ ${args.price_gpu}/gpu/day, ${args.price_inetu}/GB up, ${args.price_inetd}/GB down&#34;.format(**locals()));
+        else :
+            print(rj[&#34;msg&#34;]);
+    else :
+        print(r.text);
+        print(&#34;failed with error {r.status_code}&#34;.format(**locals()));
+
+
+
+
+
+
+
+
+#def delete_bid(args):
+#    print(&#34;delete bids!\n&#34;);
+#
+#def set_bid(args):
+#    print(&#34;set bids!\n&#34;);
+#
+#
+#def accept_bid(args):
+#    print(&#34;accept bid!\n&#34;);
+
+@parser.command(
+    argument(&#34;id&#34;,            help=&#34;id of instance type to launch&#34;, type=int),
+    argument(&#34;--price&#34;,       help=&#34;per machine bid price in $/hour&#34;, type=float),
+    argument(&#34;--disk&#34;,        help=&#34;size of local disk partition in GB&#34;, type=float, default=10),
+    argument(&#34;--image&#34;,       help=&#34;docker container image to launch&#34;, type=str),
+    argument(&#34;--label&#34;,       help=&#34;label to set on the instance&#34;, type=str),
+    argument(&#34;--onstart&#34;,     help=&#34;filename to use as onstart script&#34;, type=str),
+    argument(&#34;--onstart-cmd&#34;, help=&#34;contents of onstart script as single argument&#34;, type=str),
+    argument(&#34;--jupyter&#34;,     help=&#34;Launch as a jupyter instance instead of an ssh instance.&#34;, action=&#34;store_true&#34;),
+    argument(&#34;--jupyter-dir&#34;, help=&#34;For runtype &#39;jupyter&#39;, directory in instance to use to launch jupyter. Defaults to image&#39;s working directory.&#34;, type=str),
+    argument(&#34;--jupyter-lab&#34;, help=&#34;For runtype &#39;jupyter&#39;, directory in instance to use to launch jupyter. Defaults to image&#39;s working directory.&#34;, action=&#34;store_true&#34;),
+    argument(&#34;--lang-utf8&#34;,   help=&#34;Workaround for images with locale problems: install and generate locales before instance launch, and set locale to C.UTF-8.&#34;, action=&#34;store_true&#34;),
+    argument(&#34;--python-utf8&#34;, help=&#34;Workaround for images with locale problems: set python&#39;s locale to C.UTF-8.&#34;, action=&#34;store_true&#34;),
+    argument(&#34;--extra&#34;,       help=argparse.SUPPRESS),
+    argument(&#34;--args&#34;,        nargs=argparse.REMAINDER, help=&#34;DEPRECATED: list of arguments passed to container launch. Onstart is recommended for this purpose.&#34;),
+    argument(&#34;--create-from&#34;, help=&#34;Existing instance id to use as basis for new instance. Instance configuration should usually be identical, as only the difference from the base image is copied.&#34;, type=str),
+    argument(&#34;--force&#34;,       help=&#34;Skip sanity checks when creating from an existing instance&#34;, action=&#34;store_true&#34;),
+    usage = &#34;vast create instance id [OPTIONS] [--args ...]&#34;,
+)
+def create__instance(args):
+    if args.onstart:
+        with open(args.onstart, &#34;r&#34;) as reader:
+            args.onstart_cmd = reader.read()
+    runtype = &#39;ssh&#39;
+    if args.args:
+        runtype = &#39;args&#39;
+    if args.jupyter_dir or args.jupyter_lab:
+        args.jupyter = True
+    if args.jupyter and runtype == &#39;args&#39;:
+        print(&#34;Error: Can&#39;t use --jupyter and --args together. Try --onstart or --onstart-cmd instead of --args.&#34;, file=sys.stderr)
+        return 1
+    if args.jupyter:
+        runtype = &#39;jupyter&#39;
+
+    url = apiurl(args, &#34;/asks/{id}/&#34;.format(id=args.id))
+    r = requests.put(url, json={
+        &#34;client_id&#34;: &#34;me&#34;,
+        &#34;image&#34;: args.image,
+        &#34;args&#34;:  args.args,
+        &#34;price&#34;: args.price,
+        &#34;disk&#34;:  args.disk,
+        &#34;label&#34;: args.label,
+        &#34;extra&#34;: args.extra,
+        &#34;onstart&#34;: args.onstart_cmd,
+        &#34;runtype&#34;: runtype,
+        &#34;python_utf8&#34;: args.python_utf8,
+        &#34;lang_utf8&#34;: args.lang_utf8,
+        &#34;use_jupyter_lab&#34;: args.jupyter_lab,
+        &#34;jupyter_dir&#34;: args.jupyter_dir,
+        &#34;create_from&#34;: args.create_from,
+        &#34;force&#34;: args.force
+    })
+    r.raise_for_status()
+    if args.raw:
+        print(json.dumps(r.json(), indent=1))
+    else:
+        print(&#34;Started. {}&#34;.format(r.json()))
+
+@parser.command(
+    argument(&#34;id&#34;,            help=&#34;id of instance type to launch&#34;, type=int),
+    argument(&#34;--price&#34;,       help=&#34;per machine bid price in $/hour&#34;, type=float),
+    usage = &#34;vast change bid id [--price PRICE]&#34;,
+    epilog = deindent(&#34;&#34;&#34;
+        Change the current bid price of instance id to PRICE.
+        If PRICE is not specified, then a winning bid price is used as the default.
+    &#34;&#34;&#34;),
+)
+def change__bid(args):
+    url = apiurl(args, &#34;/instances/bid_price/{id}/&#34;.format(id=args.id))
+    r = requests.put(url, json={
+        &#34;client_id&#34;: &#34;me&#34;,
+        &#34;price&#34; : args.price,
+    })
+    r.raise_for_status()
+    print(&#34;Per gpu bid price changed&#34;.format(r.json()))
+
+
+@parser.command(
+    argument(&#34;id&#34;,            help=&#34;id of machine to set min bid price for&#34;, type=int),
+    argument(&#34;--price&#34;,       help=&#34;per gpu min bid price in $/hour&#34;, type=float),
+    usage = &#34;vast set min_bid id [--price PRICE]&#34;,
+    epilog = deindent(&#34;&#34;&#34;
+        Change the current min bid price of machine id to PRICE.
+    &#34;&#34;&#34;),
+)
+def set__min_bid(args):
+    url = apiurl(args, &#34;/machines/{id}/minbid/&#34;.format(id=args.id))
+    r = requests.put(url, json={
+        &#34;client_id&#34;: &#34;me&#34;,
+        &#34;price&#34; : args.price,
+    })
+    r.raise_for_status()
+    print(&#34;Per gpu min bid price changed&#34;.format(r.json()))
+
+
+
+
+@parser.command(
+    argument(&#34;api-key&#34;,    help=&#34;Api key to set as currently logged in user&#34;),
+    usage = &#34;vast set api-key APIKEY&#34;,
+)
+def set__api_key(args):
+    with open(api_key_file, &#34;w&#34;) as writer:
+        writer.write(args.api_key)
+    print(&#34;Your api key has been saved in {}&#34;.format(api_key_file_base))
+
+#def _load_sshkey(arg):
+#    if arg is not None and os.path.exists(arg):
+#        with open(arg, &#34;r&#34;) as reader:
+#            return reader.read()
+#    return arg
+
+@parser.command(
+    argument(&#34;email&#34;,    help=&#34;Email&#34;),
+    argument(&#34;password&#34;,    help=&#34;Password&#34;),
+    #argument(&#34;--ssh-key&#34;,     help=&#34;The SSH Pubkey you&#39;d like to use to connect to containers&#34;),
+    usage = &#34;vast create account [--api-key API_KEY] [--ssh-key SSH_KEY] USERNAME PASSWORD&#34;,
+)
+def create__account(args):
+    if args.username is None:
+        args.username = input(&#34;Email: &#34;);
+    if args.password is None:
+        args.password = getpass.getpass(&#34;Password: &#34;);
+    # TODO: do this?
+    #if args.ssh_key is None:
+    #    args.ssh_key = input(&#34;Ssh key: &#34;);
+
+    url = apiurl(args, &#34;/users/&#34;);
+    #msg = &#39;ssh_key&#39;: _load_sshkey(args.ssh_key)
+    
+    r = requests.post(url,
+            json={&#39;username&#39;:args.username, &#39;password&#39;:  args.password, } );
+    r.raise_for_status()
+    resp = r.json()
+    print(&#34;You are user {}! Your new api key: {}&#34;.format(resp[&#34;id&#34;], resp[&#34;api_key&#34;]))
+    args.api_key = resp[&#34;api_key&#34;]
+    set_api_key(args)
+
+@parser.command(
+    argument(&#34;username&#34;,    help=&#34;Username or Email&#34;, nargs=&#34;?&#34;, default=None),
+    argument(&#34;password&#34;,    help=&#34;Password&#34;, nargs=&#34;?&#34;, default=None),
+    argument(&#34;--ssh-key&#34;,     help=&#34;The SSH Pubkey you&#39;d like to use to connect to containers&#34;),
+    usage = &#34;vast login [--username USERNAME] [--password PASSWORD] [--api-key API_KEY] [--ssh-key SSH_KEY]&#34;,
+)
+def login(args):
+    if args.username is None:
+        args.username = input(&#34;Username or Email: &#34;);
+    if args.password is None:
+        try:
+            # weird try/except is because windows gives a typeerror on this line
+            args.password = getpass.getpass(&#34;Password: &#34;);
+        except TypeError:
+            try:
+                args.password = getpass.getpass(&#34;Password: &#34;.encode(&#34;utf-8&#34;))
+            except TypeError:
+                args.password = raw_input(&#34;Password: &#34;)
+
+    url = apiurl(args, &#34;/users/current/&#34;);
+    print(url)
+    
+    r = requests.put(url,
+            json={&#39;username&#39;: args.username, &#39;password&#39;: args.password} );
+    r.raise_for_status()
+    resp = r.json()
+    print(&#34;You are user {}! Your existing api key: {}&#34;.format(resp[&#34;id&#34;], resp[&#34;api_key&#34;]))
+    args.api_key = resp[&#34;api_key&#34;]
+    set__api_key(args)
+
+def main():
+    parser.add_argument(&#34;--url&#34;, help=&#34;server REST api url&#34;, default=server_url_default)
+    parser.add_argument(&#34;--raw&#34;, action=&#34;store_true&#34;, help=&#34;output machine-readable json&#34;);
+    parser.add_argument(&#34;--api-key&#34;,     help=&#34;api key. defaults to using the one stored in {}&#34;.format(api_key_file_base), type=str, required=False, default=api_key_guard)
+
+    #func_dict = {
+    #    &#34;set defjob&#34;:               set_defjob,
+    #    &#34;remove defjob&#34;:            remove_defjob,
+    #    #&#34;accept ask&#34;:              accept_ask,
+    #    #&#34;exec bid&#34;:                create_bid,
+    #    #&#34;set ask&#34;:                 set_ask,
+    #    #&#34;list asks&#34;:               list_asks,
+    #    &#34;create account&#34;:           create_account,
+    #    &#34;login&#34;:                    login,
+    #    &#34;create instance&#34;:          create_instance,
+    #    &#34;change bid&#34;:               change_bid,
+    #    &#34;destroy instance&#34;:         destroy_instance,
+    #    &#34;start instance&#34;:           start_instance,
+    #    &#34;stop instance&#34;:            stop_instance,
+    #    &#34;label instance&#34;:           label_instance,
+    #    &#34;list machine&#34;:             list_machine,
+    #    &#34;unlist machine&#34;:           unlist_machine,
+    #    #&#34;search offers&#34;:         search_instances,
+    #    &#34;show instances&#34;:           show_instances,
+    #    &#34;show host-instances&#34;:      host_instances,
+    #    &#34;show machines&#34;:            show_machines,
+    #    &#34;set min-bid&#34;:              set_min_bid,
+    #    &#34;set api-key&#34;:              set_api_key_cmd,
+    #}
+
+
+    func_help = [
+        &#34;General:&#34;,
+        &#34;create account          Create a new account with a username and password&#34;,
+        &#34;login                   Login to an account and or switch accounts&#34;,
+        &#34;set api-key             Set account via api key&#34;,
+        &#34;&#34;,
+        &#34;Client:&#34;,
+        &#34;create instance         Accept an offer and launch a new container instance&#34;,
+        &#34;destroy instance        Stop and destroy an existing container instance, deleting local storage&#34;,
+        &#34;change bid              Set a new bid price for an interruptible instance&#34;,
+        &#34;label instance          Set label for existing instance&#34;,
+        &#34;start instance          Start/restart an existing stopped container instance&#34;,
+        &#34;stop instance           Stop and hibernate an existing container instance; local storage persists&#34;,
+        &#34;search offers           Search for available instances to rent that match specific criteria&#34;,
+        &#34;show instances          Show all your current rental instances&#34;,
+        &#34;&#34;,
+        &#34;Host:&#34;,
+        &#34;show machines           Show all your physical machines connected to vast.ai&#34;,
+        &#34;set defjob              Change/configure the default low-priority instance to run on a machine&#34;,
+        &#34;remove defjob           remove any default instance from a machine&#34;,
+        &#34;list machine            List a machine for rental: creates and registers one or more instance offers with pricing&#34;,
+        &#34;unlist machine          Unlist a machine: destroys and unregisters instance offers (but doesn&#39;t effect any active instances)&#34;,
+        &#34;set min-bid             Set minimum per gpu bid price&#34;,
+    ]
+    
+    #cmd0 = &#34;&#34;; cmd1 = &#34;&#34;;
+    #
+    #if len(sys.argv) &gt; 1:
+    #    if (sys.argv[1] == &#34;help&#34;):
+    #        sys.argv[1:2] = []
+    #        sys.argv.append(&#34;--help&#34;)
+    #if len(sys.argv) &gt; 1: cmd0 = sys.argv[1];
+
+    #command_type = cmd0;
+        
+    #if (cmd0 not in func_dict):
+    #    if len(sys.argv) &gt; 2: cmd1 = sys.argv[2];
+    #    command_type = cmd0 + &#39; &#39; + cmd1;
+    
+    #print(&#34;command: {}&#34;.format(command_type));
+
+    #parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter);
+
+    args = parser.parse_args()
+    if args.api_key is api_key_guard:
+        if os.path.exists(api_key_file):
+            with open(api_key_file, &#34;r&#34;) as reader:
+                args.api_key = reader.read().strip()
+        else:
+            args.api_key = None
+    try:
+        sys.exit(args.func(args) or 0)
+    except requests.exceptions.HTTPError as e :
+        try:
+            errmsg = e.response.json().get(&#34;msg&#34;);
+        except JSONDecodeError:
+            if e.response.status_code == 401:
+                errmsg = &#34;Please log in or sign up&#34;
+            else:
+                errmsg = &#34;(no detail message supplied)&#34;
+        print(&#34;failed with error {e.response.status_code}: {errmsg}&#34;.format(**locals()));            
+    #else:
+    #    if cmd0 != &#34;--help&#34; : print(&#34;Unrecognized command &#39;&#34; + command_type.strip() + &#34;&#39;. Use vast --help for list of commands.&#34;)
+    #    parser = argparse.ArgumentParser(
+    #            description=&#34;Available Commands:\n\n{}&#34;.format(&#34;\n&#34;.join((func_help))),
+    #            formatter_class=argparse.RawDescriptionHelpFormatter)
+    #    parser.parse_args()
+
+
+if __name__ == &#34;__main__&#34;:
+    try:
+        main()
+    except (KeyboardInterrupt, BrokenPipeError):
+        pass</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="vastai.vast.apiurl"><code class="name flex">
+<span>def <span class="ident">apiurl</span></span>(<span>args, subpath, query_args=None)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def apiurl(args, subpath, query_args=None):
+    if query_args is None:
+        query_args = {}
+    if args.api_key is not None:
+        query_args[&#34;api_key&#34;] = args.api_key
+    if query_args:
+        #a_list      = [&lt;expression&gt; for &lt;l-expression&gt; in &lt;expression&gt;]
+        &#39;&#39;&#39;
+        vector result;
+        for (l_expression: expression) {
+            result.push_back(expression);
+        }
+        &#39;&#39;&#39;
+        #an_iterator = (&lt;expression&gt; for &lt;l-expression&gt; in &lt;expression&gt;)
+        return args.url + subpath + &#34;?&#34; + &#34;&amp;&#34;.join(
+                &#34;{x}={y}&#34;.format(x=x, y=quote_plus(y if isinstance(y, str) else json.dumps(y))) for x, y in query_args.items())
+    else:
+        return args.url + subpath</code></pre>
+</details>
+</dd>
+<dt id="vastai.vast.deindent"><code class="name flex">
+<span>def <span class="ident">deindent</span></span>(<span>message)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>deindent a quoted string</p></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def deindent(message):
+    &#34;&#34;&#34;
+    deindent a quoted string
+    &#34;&#34;&#34;
+    message = re.sub(r&#34; *$&#34;, &#34;&#34;, message, flags=re.MULTILINE)
+    indents = [len(x) for x in re.findall(&#34;^ *(?=[^ ])&#34;, message, re.MULTILINE) if len(x)]
+    a = min(indents)
+    message = re.sub(r&#34;^ {,&#34; + str(a) + &#34;}&#34;, &#34;&#34;, message, flags=re.MULTILINE)
+    return message.strip()</code></pre>
+</details>
+</dd>
+<dt id="vastai.vast.parse_query"><code class="name flex">
+<span>def <span class="ident">parse_query</span></span>(<span>query_str, res=None)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def parse_query(query_str, res=None):
+    if res is None: res = {}
+    if type(query_str) == list:
+        query_str = &#34; &#34;.join(query_str)
+    query_str = query_str.strip()
+    opts = re.findall(&#34;([a-zA-Z0-9_]+)( *[=&gt;&lt;!]+| +(?:[lg]te?|nin|neq|eq|not ?eq|not ?in|in) )?( *)(\[[^\]]+\]|[^ ]+)?( *)&#34;, query_str)
+    #res = {}
+    op_names = {
+        &#34;&gt;=&#34;: &#34;gte&#34;,
+        &#34;&gt;&#34;: &#34;gt&#34;,
+        &#34;gt&#34;: &#34;gt&#34;,
+        &#34;gte&#34;: &#34;gte&#34;,
+        &#34;&lt;=&#34;: &#34;lte&#34;,
+        &#34;&lt;&#34;: &#34;lt&#34;,
+        &#34;lt&#34;: &#34;lt&#34;,
+        &#34;lte&#34;: &#34;lte&#34;,
+        &#34;!=&#34;: &#34;neq&#34;,
+        &#34;==&#34;: &#34;eq&#34;,
+        &#34;=&#34;: &#34;eq&#34;,
+        &#34;eq&#34;: &#34;eq&#34;,
+        &#34;neq&#34;: &#34;neq&#34;,
+        &#34;noteq&#34;: &#34;neq&#34;,
+        &#34;not eq&#34;: &#34;neq&#34;,
+        &#34;notin&#34;: &#34;notin&#34;,
+        &#34;not in&#34;: &#34;notin&#34;,
+        &#34;nin&#34;: &#34;notin&#34;,
+        &#34;in&#34;: &#34;in&#34;,
+    };
+    
+    field_alias = {
+        &#34;cuda_vers&#34;:        &#34;cuda_max_good&#34;,
+        &#34;display_active&#34;:   &#34;gpu_display_active&#34;,
+        &#34;reliability&#34;:      &#34;reliability2&#34;,
+        &#34;dlperf_usd&#34;:       &#34;dlperf_per_dphtotal&#34;,
+        &#34;dph&#34;:              &#34;dph_total&#34;,
+        &#34;flops_usd&#34;:        &#34;flops_per_dphtotal&#34;,
+    };
+    
+    field_multiplier = {
+        &#34;cpu_ram&#34;   : 1000,
+        &#34;duration&#34;  : 1.0 / (24.0*60.0*60.0),
+    }
+    
+    fields = {
+        &#34;compute_cap&#34;,
+        &#34;cpu_cores&#34;,
+        &#34;cpu_cores_effective&#34;,
+        &#34;cpu_ram&#34;,
+        &#34;cuda_max_good&#34;,
+        &#34;disk_bw&#34;,
+        &#34;disk_space&#34;,
+        &#34;dlperf&#34;,
+        &#34;dlperf_per_dphtotal&#34;
+        &#34;dph_total&#34;,
+        &#34;duration&#34;,
+        &#34;external&#34;,
+        &#34;flops_per_dphtotal&#34;,
+        &#34;gpu_display_active&#34;,
+        #&#34;gpu_ram_free_min&#34;,
+        &#34;gpu_mem_bw&#34;,
+        &#34;gpu_name&#34;,
+        &#34;gpu_ram&#34;,
+        &#34;has_avx&#34;,
+        &#34;host_id&#34;,
+        &#34;id&#34;,
+        &#34;inet_down&#34;,
+        &#34;inet_down_cost&#34;,
+        &#34;inet_up&#34;,
+        &#34;inet_up_cost&#34;,
+        &#34;min_bid&#34;,
+        &#34;mobo_name&#34;,
+        &#34;num_gpus&#34;,
+        &#34;pci_gen&#34;,
+        &#34;pcie_bw&#34;,
+        &#34;reliability2&#34;,
+        &#34;rentable&#34;,
+        &#34;rented&#34;,
+        &#34;storage_cost&#34;,
+        &#34;total_flops&#34;,
+        &#34;verified&#34;
+    };
+    
+    joined = &#34;&#34;.join(&#34;&#34;.join(x) for x in opts)
+    if joined != query_str:
+        raise ValueError(&#34;Unconsumed text. Did you forget to quote your query? &#34; + repr(joined) + &#34; != &#34; + repr(query_str))
+    for field, op, _, value, _ in opts:
+        value = value.strip(&#34;,[]&#34;)
+        v = res.setdefault(field, {})
+        op = op.strip()
+        op_name = op_names.get(op)
+        
+        if field in field_alias:
+            field = field_alias[field];
+            
+        
+        if not field in fields:
+            print(&#34;Warning: Unrecognized field: {}, see list of recognized fields.&#34;.format(field), file=sys.stderr);
+        if not op_name:
+            raise ValueError(&#34;Unknown operator. Did you forget to quote your query? &#34; + repr(op).strip(&#34;u&#34;))
+        if op_name in [&#34;in&#34;, &#34;notin&#34;]:
+            value = [x.strip() for x in value.split(&#34;,&#34;) if x.strip()]
+        if not value:
+            raise ValueError(&#34;Value cannot be blank. Did you forget to quote your query? &#34; + repr((field, op, value)))
+        if not field:
+            raise ValueError(&#34;Field cannot be blank. Did you forget to quote your query? &#34; + repr((field, op, value)))
+        if value in [&#34;?&#34;, &#34;*&#34;, &#34;any&#34;]:
+            if op_name != &#34;eq&#34;:
+                raise ValueError(&#34;Wildcard only makes sense with equals.&#34;)
+            if field in v:
+                del v[field]
+            if field in res:
+                del res[field]
+            continue
+
+        if field in field_multiplier:
+            value = str(float(value) * field_multiplier[field]);
+
+        v[op_name] = value
+        res[field] = v;
+    return res</code></pre>
+</details>
+</dd>
+<dt id="vastai.vast.display_table"><code class="name flex">
+<span>def <span class="ident">display_table</span></span>(<span>rows, fields)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def display_table(rows, fields):
+    header = [name for _, name, _, _, _ in fields]
+    out_rows = [header]
+    lengths = [len(x) for x in header]
+    for instance in rows:
+        row = []
+        out_rows.append(row)
+        for key, name, fmt, conv, _ in fields:
+            conv = conv or (lambda x: x)
+            val = instance.get(key, None)
+            if val is None:
+                s = &#34;-&#34;
+            else:
+                val = conv(val)
+                s = fmt.format(val)
+            idx = len(row)
+            lengths[idx] = max(len(s), lengths[idx])
+            row.append(s)
+    for row in out_rows:
+        out = []
+        for l, s, f in zip(lengths, row, fields):
+            _, _, _, _, ljust = f
+            if ljust:
+                s = s.ljust(l)
+            else:
+                s = s.rjust(l)
+            out.append(s)
+        print(&#34;  &#34;.join(out))</code></pre>
+</details>
+</dd>
+<dt id="vastai.vast.search__offers"><code class="name flex">
+<span>def <span class="ident">search__offers</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@parser.command(
+    argument(&#34;-t&#34;, &#34;--type&#34;, default=&#34;on-demand&#34;, help=&#34;whether to show `interruptible` or `on-demand` offers. default: on-demand&#34;),
+    argument(&#34;-i&#34;, &#34;--interruptible&#34;, dest=&#34;type&#34;, const=&#34;interruptible&#34;, action=&#34;store_const&#34;, help=&#34;Alias for --type=interruptible&#34;),
+    argument(&#34;-d&#34;, &#34;--on-demand&#34;, dest=&#34;type&#34;, const=&#34;on-demand&#34;, action=&#34;store_const&#34;, help=&#34;Alias for --type=on-demand&#34;),
+    argument(&#34;-n&#34;, &#34;--no-default&#34;, action=&#34;store_true&#34;, help=&#34;Disable default query&#34;),
+    argument(&#34;--disable-bundling&#34;, action=&#34;store_true&#34;, help=&#34;Show identical offers. This request is more heavily rate limited.&#34;),
+    argument(&#34;--storage&#34;, type=float, default=5.0, help=&#34;amount of storage to use for pricing, in GiB. default=5.0GiB&#34;),
+    argument(&#34;-o&#34;, &#34;--order&#34;, type=str, help=&#34;comma-separated list of fields to sort on. postfix field with - to sort desc. ex: -o &#39;num_gpus,total_flops-&#39;.  default=&#39;score-&#39;&#34;, default=&#39;score-&#39;),
+    argument(&#34;query&#34;,            help=&#34;Query to search for. default: &#39;external=false rentable=true verified=true&#39;, pass -n to ignore default&#34;, nargs=&#34;*&#34;, default=None),
+    usage=&#34;vast search offers [--help] [--api-key API_KEY] [--raw] &lt;query&gt;&#34;,
+    epilog=deindent(&#34;&#34;&#34;
+        Query syntax:
+        
+            query = comparison comparison...
+            comparison = field op value
+            field = &lt;name of a field&gt;
+            op = one of: &lt;, &lt;=, ==, !=, &gt;=, &gt;, in, notin
+            value = &lt;bool, int, float, etc&gt; | &#39;any&#39;
+        
+        note: to pass &#39;&gt;&#39; and &#39;&lt;&#39; on the command line, make sure to use quotes
+
+           
+        Examples:
+        
+            ./vast search offers &#39;compute_cap &gt; 610 total_flops &lt; 5&#39;
+            ./vast search offers &#39;reliability &gt; 0.99  num_gpus&gt;=4&#39; -o &#39;num_gpus-&#39;
+            ./vast search offers &#39;rentable = any&#39;
+       
+        Available fields:
+            
+              Name                  Type       Description
+
+            compute_cap:            int       cuda compute capability*100  (ie:  650 for 6.5, 700 for 7.0)
+            cpu_cores:              int       # virtual cpus
+            cpu_cores_effective:    float     # virtual cpus you get
+            cpu_ram:                float     system RAM in gigabytes
+            cuda_vers:              float     cuda version
+            disk_bw:                float     disk read bandwidth, in MB/s
+            disk_space:             float     disk storage space, in GB
+            dlperf:                 float     DL-perf score  (see FAQ for explanation)
+            dlperf_usd:             float     DL-perf/$
+            dph:                    float     $/hour rental cost
+            duration:               float     max rental duration in days
+            external:               bool      show external offers
+            flops_usd:              float     TFLOPs/$
+            gpu_mem_bw:             float     GPU memory bandwidth in GB/s
+            gpu_ram:                float     GPU RAM in GB
+            gpu_frac:               float     Ratio of GPUs in the offer to gpus in the system
+            has_avx:                bool      CPU supports AVX instruction set.
+            id:                     int       instance unique ID
+            inet_down:              float     internet download speed in Mb/s
+            inet_down_cost:         float     internet download bandwidth cost in $/GB
+            inet_up:                float     internet upload speed in Mb/s
+            inet_up_cost:           float     internet upload bandwidth cost in $/GB
+            min_bid:                float     current minimum bid price in $/hr for interruptible
+            num_gpus:               int       # of GPUs
+            pci_gen:                float     PCIE generation
+            pcie_bw:                float     PCIE bandwidth (CPU to GPU)
+            reliability:            float     machine reliability score (see FAQ for explanation)
+            rentable:               bool      is the instance currently rentable
+            rented:                 bool      is the instance currently rented
+            storage_cost:           float     storage cost in $/GB/month
+            total_flops:            float     total TFLOPs from all GPUs
+            verified:               bool      is the machine verified
+    &#34;&#34;&#34;),
+    aliases=hidden_aliases([&#34;search instances&#34;]),
+)
+def search__offers(args):
+    field_alias = {
+        &#34;cuda_vers&#34;     : &#34;cuda_max_good&#34;,
+        &#34;reliability&#34;   : &#34;reliability2&#34;,
+        &#34;dlperf_usd&#34;    : &#34;dlperf_per_dphtotal&#34;,
+        &#34;dph&#34;           : &#34;dph_total&#34;,
+        &#34;flops_usd&#34;     : &#34;flops_per_dphtotal&#34;,
+    };
+
+    try:
+
+        if args.no_default:
+            query = {}
+        else:
+            query = { &#34;verified&#34;:{&#34;eq&#34;:True}, &#34;external&#34;:{&#34;eq&#34;:False}, &#34;rentable&#34;:{&#34;eq&#34;:True} }
+    
+        if args.query is not None:
+            query = parse_query(args.query, query)
+        #print(&#34;query length: {}&#34;.format(len(query)));
+        #for k,q in query.items():
+            #print(&#34;{} {}&#34;.format(k, q));
+        order = []
+        for name in args.order.split(&#34;,&#34;):
+            name = name.strip()
+            if not name: continue
+            direction = &#34;asc&#34;
+            if name.strip(&#34;-&#34;) != name:
+                direction = &#34;desc&#34;
+            field = name.strip(&#34;-&#34;);
+            if field in field_alias:
+                field = field_alias[field];
+            order.append([field, direction])
+
+        query[&#34;order&#34;] = order
+        query[&#34;type&#34;]  = args.type
+        if args.disable_bundling:
+            query[&#34;disable_bundling&#34;] = True
+    except ValueError as e:
+        print(&#34;Error: &#34;, e)
+        return 1
+    
+    url = apiurl(args, &#34;/bundles&#34;, {&#34;q&#34;:query});
+    #url = apiurl(args, &#34;/bundles&#34;) + &#34;?q=&#34; + quote_plus(json.dumps(query));
+    r = requests.get(url);
+    r.raise_for_status()
+    rows = r.json()[&#34;offers&#34;]
+    if args.raw:
+        print(json.dumps(rows, indent=1, sort_keys=True))
+    else:
+        #print(url);
+        #print(&#34;{N} instances types: &#34;.format(N=len(rows)) );
+        display_table(rows, displayable_fields)</code></pre>
+</details>
+</dd>
+<dt id="vastai.vast.show__instances"><code class="name flex">
+<span>def <span class="ident">show__instances</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@parser.command(
+    usage=&#34;vast show instances [--api-key API_KEY] [--raw]&#34;,
+)
+def show__instances(args):
+    req_url = apiurl(args, &#34;/instances&#34;, {&#34;owner&#34;: &#34;me&#34;});
+    r = requests.get(req_url);
+    r.raise_for_status()
+    rows = r.json()[&#34;instances&#34;]
+    if args.raw:
+        print(json.dumps(rows, indent=1, sort_keys=True))
+    else:
+        display_table(rows, instance_fields)</code></pre>
+</details>
+</dd>
+<dt id="vastai.vast.show__machines"><code class="name flex">
+<span>def <span class="ident">show__machines</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@parser.command(
+    argument(&#34;-q&#34;, &#34;--quiet&#34;, action=&#34;store_true&#34;, help=&#34;only display numeric ids&#34;),
+    usage = &#34;vast show machines [OPTIONS]&#34;,
+)
+def show__machines(args):
+    req_url = apiurl(args, &#34;/machines&#34;, {&#34;owner&#34;: &#34;me&#34;});
+    r = requests.get(req_url);
+    r.raise_for_status()
+    rows = r.json()[&#34;machines&#34;]
+    if args.raw:
+        print(json.dumps(rows, indent=1, sort_keys=True))
+    else:
+        for machine in rows:
+            if args.quiet:
+                print(&#34;{id}&#34;.format(id=machine[&#34;id&#34;]))
+            else:
+                print(&#34;{N} machines: &#34;.format(N=len(rows)) );
+                print(&#34;{id}: {json}&#34;.format(id=machine[&#34;id&#34;], json=json.dumps(machine, indent=4, sort_keys=True)))</code></pre>
+</details>
+</dd>
+<dt id="vastai.vast.list__machine"><code class="name flex">
+<span>def <span class="ident">list__machine</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@parser.command(
+    argument(&#34;id&#34;,                  help=&#34;id of machine to list&#34;, type=int),
+    argument(&#34;-g&#34;, &#34;--price_gpu&#34;,   help=&#34;per gpu rental price in $/hour  (price for active instances)&#34;, type=float),
+    argument(&#34;-s&#34;, &#34;--price_disk&#34;,  help=&#34;storage price in $/GB/month (price for inactive instances), default: $0.15/GB/month&#34;, type=float),
+    argument(&#34;-u&#34;, &#34;--price_inetu&#34;, help=&#34;price for internet upload bandwidth in $/GB&#34;, type=float),
+    argument(&#34;-d&#34;, &#34;--price_inetd&#34;, help=&#34;price for internet download bandwidth in $/GB&#34;, type=float),
+    usage = &#34;vast list machine id [--price_gpu PRICE_GPU] [--price_inetu PRICE_INETU] [--price_inetd PRICE_INETD] [--api-key API_KEY]&#34;,
+)
+def list__machine(args):
+    #req_url = args.url + &#34;/machines/create_asks/?user_id=&#34; + str(args.user);
+    req_url = apiurl(args, &#34;/machines/create_asks/&#34;);
+
+    #print(&#34;PUT &#34; + req_url);
+    r = requests.put(req_url, json = {&#39;machine&#39;:args.id, &#39;price_gpu&#39;:args.price_gpu, &#39;price_disk&#39;:args.price_disk, &#39;price_inetu&#39;:args.price_inetu, &#39;price_inetd&#39;:args.price_inetd } );
+    
+    if (r.status_code == 200) :
+        #print(r.text);
+        rj = r.json();
+        if (rj[&#34;success&#34;]) :
+            price_gpu_   = str(args.price_gpu) if args.price_gpu is not None else &#34;def&#34;;
+            price_inetu_ = str(args.price_inetu);
+            price_inetd_ = str(args.price_inetd);
+            print(&#34;offers created for machine {args.id},  @ ${price_gpu_}/gpu/day, ${price_inetu_}/GB up, ${price_inetd_}/GB down&#34;.format(**locals()));
+        else :
+            print(rj[&#34;msg&#34;]);
+    else :
+        print(r.text);
+        print(&#34;failed with error {r.status_code}&#34;.format(**locals()));</code></pre>
+</details>
+</dd>
+<dt id="vastai.vast.unlist__machine"><code class="name flex">
+<span>def <span class="ident">unlist__machine</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@parser.command(
+    argument(&#34;id&#34;,          help=&#34;id of machine to list&#34;, type=int),
+    usage = &#34;vast unlist machine &lt;id&gt;&#34;,
+)
+def unlist__machine(args):
+    req_url = apiurl(args, &#34;/machines/{machine_id}/asks/&#34;.format(machine_id = args.id));
+    #req_url = args.url + &#34;/machines/{machine_id}/asks/&#34;.format(machine_id = args.id);
+    #print(req_url);
+    r = requests.delete(req_url);
+    
+    if (r.status_code == 200) :
+        #print(r.text);
+        rj = r.json();
+        if (rj[&#34;success&#34;]) :
+            print(&#34;all offers for machine {machine_id} removed, machine delisted.&#34;.format(machine_id = args.id));
+        else :
+            print(rj[&#34;msg&#34;]);
+    else :
+        print(r.text);
+        print(&#34;failed with error {r.status_code}&#34;.format(**locals()));</code></pre>
+</details>
+</dd>
+<dt id="vastai.vast.remove__defjob"><code class="name flex">
+<span>def <span class="ident">remove__defjob</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@parser.command(
+    argument(&#34;id&#34;,          help=&#34;id of machine to remove default instance from&#34;, type=int),
+)
+def remove__defjob(args):
+
+    req_url = apiurl(args, &#34;/machines/{machine_id}/defjob/&#34;.format(machine_id = args.id));
+    #print(req_url);
+    r = requests.delete(req_url);
+    
+    if (r.status_code == 200) :
+        #print(r.text);
+        rj = r.json();
+        if (rj[&#34;success&#34;]) :
+            print(&#34;default instance for machine {machine_id} removed.&#34;.format(machine_id = args.id));
+        else :
+            print(rj[&#34;msg&#34;]);
+    else :
+        print(r.text);
+        print(&#34;failed with error {r.status_code}&#34;.format(**locals()));</code></pre>
+</details>
+</dd>
+<dt id="vastai.vast.set_ask"><code class="name flex">
+<span>def <span class="ident">set_ask</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def set_ask(args):
+    print(&#34;set asks!\n&#34;);</code></pre>
+</details>
+</dd>
+<dt id="vastai.vast.start__instance"><code class="name flex">
+<span>def <span class="ident">start__instance</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@parser.command(
+    argument(&#34;id&#34;,            help=&#34;id of instance to start/restart&#34;, type=int),
+    usage = &#34;vast start instance &lt;id&gt; [--raw]&#34;,
+)
+def start__instance(args):
+    url = apiurl(args, &#34;/instances/{id}/&#34;.format(id=args.id))
+    r = requests.put(url, json={
+        &#34;state&#34;: &#34;running&#34;
+    })
+    r.raise_for_status()
+
+    if (r.status_code == 200) :
+        rj = r.json();
+        if (rj[&#34;success&#34;]) :
+            print(&#34;starting instance {args.id}.&#34;.format(**(locals())) );
+        else :
+            print(rj[&#34;msg&#34;]);
+    else :
+        print(r.text);
+        print(&#34;failed with error {r.status_code}&#34;.format(**locals()));</code></pre>
+</details>
+</dd>
+<dt id="vastai.vast.stop__instance"><code class="name flex">
+<span>def <span class="ident">stop__instance</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@parser.command(
+    argument(&#34;id&#34;,            help=&#34;id of instance to stop&#34;, type=int),
+    usage = &#34;vast stop instance [--raw] &lt;id&gt;&#34;,
+)
+def stop__instance(args):
+    url = apiurl(args, &#34;/instances/{id}/&#34;.format(id=args.id))
+    r = requests.put(url, json={
+        &#34;state&#34;: &#34;stopped&#34;
+    })
+    r.raise_for_status()
+
+    if (r.status_code == 200) :
+        rj = r.json();
+        if (rj[&#34;success&#34;]) :
+            print(&#34;stopping instance {args.id}.&#34;.format(**(locals())) );
+        else :
+            print(rj[&#34;msg&#34;]);
+    else :
+        print(r.text);
+        print(&#34;failed with error {r.status_code}&#34;.format(**locals()));</code></pre>
+</details>
+</dd>
+<dt id="vastai.vast.label__instance"><code class="name flex">
+<span>def <span class="ident">label__instance</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@parser.command(
+    argument(&#34;id&#34;,            help=&#34;id of instance to label&#34;, type=int),
+    argument(&#34;label&#34;,         help=&#34;label to set&#34;, type=str),
+    usage = &#34;vast label instance &lt;id&gt; &lt;label&gt;&#34;,
+)
+def label__instance(args):
+    url = apiurl(args, &#34;/instances/{id}/&#34;.format(id=args.id))
+    r = requests.put(url, json={
+        &#34;label&#34;: args.label
+    })
+    r.raise_for_status()
+
+    rj = r.json();
+    if rj[&#34;success&#34;]:
+        print(&#34;label for {args.id} set to {args.label}.&#34;.format(**(locals())) );
+    else :
+        print(rj[&#34;msg&#34;]);</code></pre>
+</details>
+</dd>
+<dt id="vastai.vast.destroy__instance"><code class="name flex">
+<span>def <span class="ident">destroy__instance</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@parser.command(
+    argument(&#34;id&#34;,            help=&#34;id of instance to delete&#34;, type=int),
+    usage=&#34;vast destroy instance id [-h] [--api-key API_KEY] [--raw]&#34;
+)
+def destroy__instance(args):
+    url = apiurl(args, &#34;/instances/{id}/&#34;.format(id=args.id))
+    r = requests.delete(url, json={})
+    r.raise_for_status()
+    
+
+    if (r.status_code == 200) :
+        rj = r.json();
+        if (rj[&#34;success&#34;]) :
+            print(&#34;destroying instance {args.id}.&#34;.format(**(locals())) );
+        else :
+            print(rj[&#34;msg&#34;]);
+    else :
+        print(r.text);
+        print(&#34;failed with error {r.status_code}&#34;.format(**locals()));</code></pre>
+</details>
+</dd>
+<dt id="vastai.vast.set__defjob"><code class="name flex">
+<span>def <span class="ident">set__defjob</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@parser.command(
+    argument(&#34;id&#34;,            help=&#34;id of machine to launch default instance on&#34;, type=int),
+    argument(&#34;--price_gpu&#34;,   help=&#34;per gpu rental price in $/hour&#34;, type=float),
+    argument(&#34;--price_inetu&#34;, help=&#34;price for internet upload bandwidth in $/GB&#34;, type=float),
+    argument(&#34;--price_inetd&#34;, help=&#34;price for internet download bandwidth in $/GB&#34;, type=float),
+    argument(&#34;--image&#34;,       help=&#34;docker container image to launch&#34;, type=str),
+    argument(&#34;--args&#34;,        nargs=argparse.REMAINDER, help=&#34;list of arguments passed to container launch&#34;),
+    usage=&#34;vast set defjob id [--api-key API_KEY] [--price_gpu PRICE_GPU] [--price_inetu PRICE_INETU] [--price_inetd PRICE_INETD] [--image IMAGE] [--args ...]&#34;
+)
+def set__defjob(args):
+    #req_url = args.url + &#34;/machines/create_asks/?user_id=&#34; + str(args.user);
+    req_url    = apiurl(args, &#34;/machines/create_bids/&#34;);
+
+    #print(&#34;PUT &#34; + req_url);
+    r = requests.put(req_url, json = 
+        {&#39;machine&#39;:args.id, &#39;price_gpu&#39;:args.price_gpu, &#39;price_inetu&#39;:args.price_inetu, &#39;price_inetd&#39;:args.price_inetd,
+         &#39;image&#39;:args.image, &#39;args&#39;:args.args } );
+    
+    if (r.status_code == 200) :
+        #print(r.text);
+        rj = r.json();
+        if (rj[&#34;success&#34;]) :
+            print(&#34;bids created for machine {args.id},  @ ${args.price_gpu}/gpu/day, ${args.price_inetu}/GB up, ${args.price_inetd}/GB down&#34;.format(**locals()));
+        else :
+            print(rj[&#34;msg&#34;]);
+    else :
+        print(r.text);
+        print(&#34;failed with error {r.status_code}&#34;.format(**locals()));</code></pre>
+</details>
+</dd>
+<dt id="vastai.vast.create__instance"><code class="name flex">
+<span>def <span class="ident">create__instance</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@parser.command(
+    argument(&#34;id&#34;,            help=&#34;id of instance type to launch&#34;, type=int),
+    argument(&#34;--price&#34;,       help=&#34;per machine bid price in $/hour&#34;, type=float),
+    argument(&#34;--disk&#34;,        help=&#34;size of local disk partition in GB&#34;, type=float, default=10),
+    argument(&#34;--image&#34;,       help=&#34;docker container image to launch&#34;, type=str),
+    argument(&#34;--label&#34;,       help=&#34;label to set on the instance&#34;, type=str),
+    argument(&#34;--onstart&#34;,     help=&#34;filename to use as onstart script&#34;, type=str),
+    argument(&#34;--onstart-cmd&#34;, help=&#34;contents of onstart script as single argument&#34;, type=str),
+    argument(&#34;--jupyter&#34;,     help=&#34;Launch as a jupyter instance instead of an ssh instance.&#34;, action=&#34;store_true&#34;),
+    argument(&#34;--jupyter-dir&#34;, help=&#34;For runtype &#39;jupyter&#39;, directory in instance to use to launch jupyter. Defaults to image&#39;s working directory.&#34;, type=str),
+    argument(&#34;--jupyter-lab&#34;, help=&#34;For runtype &#39;jupyter&#39;, directory in instance to use to launch jupyter. Defaults to image&#39;s working directory.&#34;, action=&#34;store_true&#34;),
+    argument(&#34;--lang-utf8&#34;,   help=&#34;Workaround for images with locale problems: install and generate locales before instance launch, and set locale to C.UTF-8.&#34;, action=&#34;store_true&#34;),
+    argument(&#34;--python-utf8&#34;, help=&#34;Workaround for images with locale problems: set python&#39;s locale to C.UTF-8.&#34;, action=&#34;store_true&#34;),
+    argument(&#34;--extra&#34;,       help=argparse.SUPPRESS),
+    argument(&#34;--args&#34;,        nargs=argparse.REMAINDER, help=&#34;DEPRECATED: list of arguments passed to container launch. Onstart is recommended for this purpose.&#34;),
+    argument(&#34;--create-from&#34;, help=&#34;Existing instance id to use as basis for new instance. Instance configuration should usually be identical, as only the difference from the base image is copied.&#34;, type=str),
+    argument(&#34;--force&#34;,       help=&#34;Skip sanity checks when creating from an existing instance&#34;, action=&#34;store_true&#34;),
+    usage = &#34;vast create instance id [OPTIONS] [--args ...]&#34;,
+)
+def create__instance(args):
+    if args.onstart:
+        with open(args.onstart, &#34;r&#34;) as reader:
+            args.onstart_cmd = reader.read()
+    runtype = &#39;ssh&#39;
+    if args.args:
+        runtype = &#39;args&#39;
+    if args.jupyter_dir or args.jupyter_lab:
+        args.jupyter = True
+    if args.jupyter and runtype == &#39;args&#39;:
+        print(&#34;Error: Can&#39;t use --jupyter and --args together. Try --onstart or --onstart-cmd instead of --args.&#34;, file=sys.stderr)
+        return 1
+    if args.jupyter:
+        runtype = &#39;jupyter&#39;
+
+    url = apiurl(args, &#34;/asks/{id}/&#34;.format(id=args.id))
+    r = requests.put(url, json={
+        &#34;client_id&#34;: &#34;me&#34;,
+        &#34;image&#34;: args.image,
+        &#34;args&#34;:  args.args,
+        &#34;price&#34;: args.price,
+        &#34;disk&#34;:  args.disk,
+        &#34;label&#34;: args.label,
+        &#34;extra&#34;: args.extra,
+        &#34;onstart&#34;: args.onstart_cmd,
+        &#34;runtype&#34;: runtype,
+        &#34;python_utf8&#34;: args.python_utf8,
+        &#34;lang_utf8&#34;: args.lang_utf8,
+        &#34;use_jupyter_lab&#34;: args.jupyter_lab,
+        &#34;jupyter_dir&#34;: args.jupyter_dir,
+        &#34;create_from&#34;: args.create_from,
+        &#34;force&#34;: args.force
+    })
+    r.raise_for_status()
+    if args.raw:
+        print(json.dumps(r.json(), indent=1))
+    else:
+        print(&#34;Started. {}&#34;.format(r.json()))</code></pre>
+</details>
+</dd>
+<dt id="vastai.vast.change__bid"><code class="name flex">
+<span>def <span class="ident">change__bid</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@parser.command(
+    argument(&#34;id&#34;,            help=&#34;id of instance type to launch&#34;, type=int),
+    argument(&#34;--price&#34;,       help=&#34;per machine bid price in $/hour&#34;, type=float),
+    usage = &#34;vast change bid id [--price PRICE]&#34;,
+    epilog = deindent(&#34;&#34;&#34;
+        Change the current bid price of instance id to PRICE.
+        If PRICE is not specified, then a winning bid price is used as the default.
+    &#34;&#34;&#34;),
+)
+def change__bid(args):
+    url = apiurl(args, &#34;/instances/bid_price/{id}/&#34;.format(id=args.id))
+    r = requests.put(url, json={
+        &#34;client_id&#34;: &#34;me&#34;,
+        &#34;price&#34; : args.price,
+    })
+    r.raise_for_status()
+    print(&#34;Per gpu bid price changed&#34;.format(r.json()))</code></pre>
+</details>
+</dd>
+<dt id="vastai.vast.set__min_bid"><code class="name flex">
+<span>def <span class="ident">set__min_bid</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@parser.command(
+    argument(&#34;id&#34;,            help=&#34;id of machine to set min bid price for&#34;, type=int),
+    argument(&#34;--price&#34;,       help=&#34;per gpu min bid price in $/hour&#34;, type=float),
+    usage = &#34;vast set min_bid id [--price PRICE]&#34;,
+    epilog = deindent(&#34;&#34;&#34;
+        Change the current min bid price of machine id to PRICE.
+    &#34;&#34;&#34;),
+)
+def set__min_bid(args):
+    url = apiurl(args, &#34;/machines/{id}/minbid/&#34;.format(id=args.id))
+    r = requests.put(url, json={
+        &#34;client_id&#34;: &#34;me&#34;,
+        &#34;price&#34; : args.price,
+    })
+    r.raise_for_status()
+    print(&#34;Per gpu min bid price changed&#34;.format(r.json()))</code></pre>
+</details>
+</dd>
+<dt id="vastai.vast.set__api_key"><code class="name flex">
+<span>def <span class="ident">set__api_key</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@parser.command(
+    argument(&#34;api-key&#34;,    help=&#34;Api key to set as currently logged in user&#34;),
+    usage = &#34;vast set api-key APIKEY&#34;,
+)
+def set__api_key(args):
+    with open(api_key_file, &#34;w&#34;) as writer:
+        writer.write(args.api_key)
+    print(&#34;Your api key has been saved in {}&#34;.format(api_key_file_base))</code></pre>
+</details>
+</dd>
+<dt id="vastai.vast.create__account"><code class="name flex">
+<span>def <span class="ident">create__account</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@parser.command(
+    argument(&#34;email&#34;,    help=&#34;Email&#34;),
+    argument(&#34;password&#34;,    help=&#34;Password&#34;),
+    #argument(&#34;--ssh-key&#34;,     help=&#34;The SSH Pubkey you&#39;d like to use to connect to containers&#34;),
+    usage = &#34;vast create account [--api-key API_KEY] [--ssh-key SSH_KEY] USERNAME PASSWORD&#34;,
+)
+def create__account(args):
+    if args.username is None:
+        args.username = input(&#34;Email: &#34;);
+    if args.password is None:
+        args.password = getpass.getpass(&#34;Password: &#34;);
+    # TODO: do this?
+    #if args.ssh_key is None:
+    #    args.ssh_key = input(&#34;Ssh key: &#34;);
+
+    url = apiurl(args, &#34;/users/&#34;);
+    #msg = &#39;ssh_key&#39;: _load_sshkey(args.ssh_key)
+    
+    r = requests.post(url,
+            json={&#39;username&#39;:args.username, &#39;password&#39;:  args.password, } );
+    r.raise_for_status()
+    resp = r.json()
+    print(&#34;You are user {}! Your new api key: {}&#34;.format(resp[&#34;id&#34;], resp[&#34;api_key&#34;]))
+    args.api_key = resp[&#34;api_key&#34;]
+    set_api_key(args)</code></pre>
+</details>
+</dd>
+<dt id="vastai.vast.login"><code class="name flex">
+<span>def <span class="ident">login</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@parser.command(
+    argument(&#34;username&#34;,    help=&#34;Username or Email&#34;, nargs=&#34;?&#34;, default=None),
+    argument(&#34;password&#34;,    help=&#34;Password&#34;, nargs=&#34;?&#34;, default=None),
+    argument(&#34;--ssh-key&#34;,     help=&#34;The SSH Pubkey you&#39;d like to use to connect to containers&#34;),
+    usage = &#34;vast login [--username USERNAME] [--password PASSWORD] [--api-key API_KEY] [--ssh-key SSH_KEY]&#34;,
+)
+def login(args):
+    if args.username is None:
+        args.username = input(&#34;Username or Email: &#34;);
+    if args.password is None:
+        try:
+            # weird try/except is because windows gives a typeerror on this line
+            args.password = getpass.getpass(&#34;Password: &#34;);
+        except TypeError:
+            try:
+                args.password = getpass.getpass(&#34;Password: &#34;.encode(&#34;utf-8&#34;))
+            except TypeError:
+                args.password = raw_input(&#34;Password: &#34;)
+
+    url = apiurl(args, &#34;/users/current/&#34;);
+    print(url)
+    
+    r = requests.put(url,
+            json={&#39;username&#39;: args.username, &#39;password&#39;: args.password} );
+    r.raise_for_status()
+    resp = r.json()
+    print(&#34;You are user {}! Your existing api key: {}&#34;.format(resp[&#34;id&#34;], resp[&#34;api_key&#34;]))
+    args.api_key = resp[&#34;api_key&#34;]
+    set__api_key(args)</code></pre>
+</details>
+</dd>
+<dt id="vastai.vast.main"><code class="name flex">
+<span>def <span class="ident">main</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def main():
+    parser.add_argument(&#34;--url&#34;, help=&#34;server REST api url&#34;, default=server_url_default)
+    parser.add_argument(&#34;--raw&#34;, action=&#34;store_true&#34;, help=&#34;output machine-readable json&#34;);
+    parser.add_argument(&#34;--api-key&#34;,     help=&#34;api key. defaults to using the one stored in {}&#34;.format(api_key_file_base), type=str, required=False, default=api_key_guard)
+
+    #func_dict = {
+    #    &#34;set defjob&#34;:               set_defjob,
+    #    &#34;remove defjob&#34;:            remove_defjob,
+    #    #&#34;accept ask&#34;:              accept_ask,
+    #    #&#34;exec bid&#34;:                create_bid,
+    #    #&#34;set ask&#34;:                 set_ask,
+    #    #&#34;list asks&#34;:               list_asks,
+    #    &#34;create account&#34;:           create_account,
+    #    &#34;login&#34;:                    login,
+    #    &#34;create instance&#34;:          create_instance,
+    #    &#34;change bid&#34;:               change_bid,
+    #    &#34;destroy instance&#34;:         destroy_instance,
+    #    &#34;start instance&#34;:           start_instance,
+    #    &#34;stop instance&#34;:            stop_instance,
+    #    &#34;label instance&#34;:           label_instance,
+    #    &#34;list machine&#34;:             list_machine,
+    #    &#34;unlist machine&#34;:           unlist_machine,
+    #    #&#34;search offers&#34;:         search_instances,
+    #    &#34;show instances&#34;:           show_instances,
+    #    &#34;show host-instances&#34;:      host_instances,
+    #    &#34;show machines&#34;:            show_machines,
+    #    &#34;set min-bid&#34;:              set_min_bid,
+    #    &#34;set api-key&#34;:              set_api_key_cmd,
+    #}
+
+
+    func_help = [
+        &#34;General:&#34;,
+        &#34;create account          Create a new account with a username and password&#34;,
+        &#34;login                   Login to an account and or switch accounts&#34;,
+        &#34;set api-key             Set account via api key&#34;,
+        &#34;&#34;,
+        &#34;Client:&#34;,
+        &#34;create instance         Accept an offer and launch a new container instance&#34;,
+        &#34;destroy instance        Stop and destroy an existing container instance, deleting local storage&#34;,
+        &#34;change bid              Set a new bid price for an interruptible instance&#34;,
+        &#34;label instance          Set label for existing instance&#34;,
+        &#34;start instance          Start/restart an existing stopped container instance&#34;,
+        &#34;stop instance           Stop and hibernate an existing container instance; local storage persists&#34;,
+        &#34;search offers           Search for available instances to rent that match specific criteria&#34;,
+        &#34;show instances          Show all your current rental instances&#34;,
+        &#34;&#34;,
+        &#34;Host:&#34;,
+        &#34;show machines           Show all your physical machines connected to vast.ai&#34;,
+        &#34;set defjob              Change/configure the default low-priority instance to run on a machine&#34;,
+        &#34;remove defjob           remove any default instance from a machine&#34;,
+        &#34;list machine            List a machine for rental: creates and registers one or more instance offers with pricing&#34;,
+        &#34;unlist machine          Unlist a machine: destroys and unregisters instance offers (but doesn&#39;t effect any active instances)&#34;,
+        &#34;set min-bid             Set minimum per gpu bid price&#34;,
+    ]
+    
+    #cmd0 = &#34;&#34;; cmd1 = &#34;&#34;;
+    #
+    #if len(sys.argv) &gt; 1:
+    #    if (sys.argv[1] == &#34;help&#34;):
+    #        sys.argv[1:2] = []
+    #        sys.argv.append(&#34;--help&#34;)
+    #if len(sys.argv) &gt; 1: cmd0 = sys.argv[1];
+
+    #command_type = cmd0;
+        
+    #if (cmd0 not in func_dict):
+    #    if len(sys.argv) &gt; 2: cmd1 = sys.argv[2];
+    #    command_type = cmd0 + &#39; &#39; + cmd1;
+    
+    #print(&#34;command: {}&#34;.format(command_type));
+
+    #parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter);
+
+    args = parser.parse_args()
+    if args.api_key is api_key_guard:
+        if os.path.exists(api_key_file):
+            with open(api_key_file, &#34;r&#34;) as reader:
+                args.api_key = reader.read().strip()
+        else:
+            args.api_key = None
+    try:
+        sys.exit(args.func(args) or 0)
+    except requests.exceptions.HTTPError as e :
+        try:
+            errmsg = e.response.json().get(&#34;msg&#34;);
+        except JSONDecodeError:
+            if e.response.status_code == 401:
+                errmsg = &#34;Please log in or sign up&#34;
+            else:
+                errmsg = &#34;(no detail message supplied)&#34;
+        print(&#34;failed with error {e.response.status_code}: {errmsg}&#34;.format(**locals()));            </code></pre>
+</details>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="vastai.vast.argument"><code class="flex name class">
+<span>class <span class="ident">argument</span></span>
+<span>(</span><span>*args, **kwargs)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class argument(object):
+    def __init__(self, *args, **kwargs):
+        self.args = args
+        self.kwargs = kwargs</code></pre>
+</details>
+</dd>
+<dt id="vastai.vast.hidden_aliases"><code class="flex name class">
+<span>class <span class="ident">hidden_aliases</span></span>
+<span>(</span><span>l)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class hidden_aliases(object):
+    # just a bit of a hack
+    def __init__(self, l):
+        self.l = l
+    def __iter__(self):
+        return iter(self.l)
+    def __bool__(self):
+        return False
+    def __nonzero__(self):
+        return False
+    def append(self,x):
+        self.l.append(x)</code></pre>
+</details>
+<h3>Methods</h3>
+<dl>
+<dt id="vastai.vast.hidden_aliases.append"><code class="name flex">
+<span>def <span class="ident">append</span></span>(<span>self, x)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def append(self,x):
+    self.l.append(x)</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="vastai.vast.apwrap"><code class="flex name class">
+<span>class <span class="ident">apwrap</span></span>
+<span>(</span><span>*args, **kwargs)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class apwrap(object):
+    def __init__(self, *args, **kwargs):
+        kwargs[&#34;formatter_class&#34;] = argparse.RawDescriptionHelpFormatter
+        self.parser = argparse.ArgumentParser(*args, **kwargs)
+        self.parser.set_defaults(func=self.fail_with_help)
+        self.subparsers_ = None
+        self.subparser_objs = []
+        self.added_help_cmd = False
+        self.post_setup = []
+        self.verbs = set()
+        self.objs = set()
+
+    def fail_with_help(self, *a, **kw):
+        self.parser.print_help(sys.stderr)
+        raise SystemExit
+
+    def add_argument(self, *a, **kw):
+        if not kw.get(&#34;parent_only&#34;):
+            for x in self.subparser_objs:
+                try:
+                    x.add_argument(*a, **kw)
+                except argparse.ArgumentError:
+                    # duplicate - or maybe other things, hopefully not
+                    pass
+        return self.parser.add_argument(*a, **kw)
+
+    def subparsers(self, *a, **kw):
+        if self.subparsers_ is None:
+            kw[&#34;metavar&#34;] = &#34;command&#34;
+            kw[&#34;help&#34;] = &#34;command to run. one of:&#34;
+            self.subparsers_ = self.parser.add_subparsers(*a, **kw)
+        return self.subparsers_
+
+    def get_name(self, verb, obj):
+        if obj:
+            self.verbs.add(verb)
+            self.objs.add(obj)
+            name = verb + &#39; &#39; + obj
+        else:
+            self.objs.add(verb)
+            name = verb
+        return name
+
+    def command(self, *arguments, aliases=(), help=None, **kwargs):
+        help_ = help
+        if not self.added_help_cmd:
+            self.added_help_cmd = True
+
+            @self.command(argument(&#34;subcommand&#34;, default=None, nargs=&#34;?&#34;), help=&#34;print this help message&#34;)
+            def help(*a, **kw):
+                self.fail_with_help()
+
+        def inner(func):
+            dashed_name = func.__name__.replace(&#34;_&#34;, &#34;-&#34;)
+            verb, _, obj = dashed_name.partition(&#34;--&#34;)
+            name = self.get_name(verb, obj)
+            aliases_transformed = [] if aliases else hidden_aliases([])
+            for x in aliases:
+                verb, _, obj = x.partition(&#34; &#34;)
+                aliases_transformed.append(self.get_name(verb, obj))
+            kwargs[&#34;formatter_class&#34;] =argparse.RawDescriptionHelpFormatter
+            sp = self.subparsers().add_parser(name, aliases=aliases_transformed, help=help_, **kwargs)
+            self.subparser_objs.append(sp)
+            for arg in arguments:
+                sp.add_argument(*arg.args, **arg.kwargs)
+            sp.set_defaults(func=func)
+            return func
+        if len(arguments) == 1 and type(arguments[0]) != argument:
+            func = arguments[0]
+            arguments = []
+            return inner(func)
+        return inner
+
+    def parse_args(self, argv=None, *a, **kw):
+        if argv is None:
+            argv = sys.argv[1:]
+        argv_ = []
+        for x in argv:
+            if argv_ and argv_[-1] in self.verbs:
+                argv_[-1] += &#34; &#34; + x
+            else:
+                argv_.append(x)
+        args = self.parser.parse_args(argv_, *a, **kw)
+        for func in self.post_setup:
+            func(args)
+        return args</code></pre>
+</details>
+<h3>Methods</h3>
+<dl>
+<dt id="vastai.vast.apwrap.fail_with_help"><code class="name flex">
+<span>def <span class="ident">fail_with_help</span></span>(<span>self, *a, **kw)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def fail_with_help(self, *a, **kw):
+    self.parser.print_help(sys.stderr)
+    raise SystemExit</code></pre>
+</details>
+</dd>
+<dt id="vastai.vast.apwrap.add_argument"><code class="name flex">
+<span>def <span class="ident">add_argument</span></span>(<span>self, *a, **kw)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def add_argument(self, *a, **kw):
+    if not kw.get(&#34;parent_only&#34;):
+        for x in self.subparser_objs:
+            try:
+                x.add_argument(*a, **kw)
+            except argparse.ArgumentError:
+                # duplicate - or maybe other things, hopefully not
+                pass
+    return self.parser.add_argument(*a, **kw)</code></pre>
+</details>
+</dd>
+<dt id="vastai.vast.apwrap.subparsers"><code class="name flex">
+<span>def <span class="ident">subparsers</span></span>(<span>self, *a, **kw)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def subparsers(self, *a, **kw):
+    if self.subparsers_ is None:
+        kw[&#34;metavar&#34;] = &#34;command&#34;
+        kw[&#34;help&#34;] = &#34;command to run. one of:&#34;
+        self.subparsers_ = self.parser.add_subparsers(*a, **kw)
+    return self.subparsers_</code></pre>
+</details>
+</dd>
+<dt id="vastai.vast.apwrap.get_name"><code class="name flex">
+<span>def <span class="ident">get_name</span></span>(<span>self, verb, obj)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_name(self, verb, obj):
+    if obj:
+        self.verbs.add(verb)
+        self.objs.add(obj)
+        name = verb + &#39; &#39; + obj
+    else:
+        self.objs.add(verb)
+        name = verb
+    return name</code></pre>
+</details>
+</dd>
+<dt id="vastai.vast.apwrap.command"><code class="name flex">
+<span>def <span class="ident">command</span></span>(<span>self, *arguments, aliases=(), help=None, **kwargs)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def command(self, *arguments, aliases=(), help=None, **kwargs):
+    help_ = help
+    if not self.added_help_cmd:
+        self.added_help_cmd = True
+
+        @self.command(argument(&#34;subcommand&#34;, default=None, nargs=&#34;?&#34;), help=&#34;print this help message&#34;)
+        def help(*a, **kw):
+            self.fail_with_help()
+
+    def inner(func):
+        dashed_name = func.__name__.replace(&#34;_&#34;, &#34;-&#34;)
+        verb, _, obj = dashed_name.partition(&#34;--&#34;)
+        name = self.get_name(verb, obj)
+        aliases_transformed = [] if aliases else hidden_aliases([])
+        for x in aliases:
+            verb, _, obj = x.partition(&#34; &#34;)
+            aliases_transformed.append(self.get_name(verb, obj))
+        kwargs[&#34;formatter_class&#34;] =argparse.RawDescriptionHelpFormatter
+        sp = self.subparsers().add_parser(name, aliases=aliases_transformed, help=help_, **kwargs)
+        self.subparser_objs.append(sp)
+        for arg in arguments:
+            sp.add_argument(*arg.args, **arg.kwargs)
+        sp.set_defaults(func=func)
+        return func
+    if len(arguments) == 1 and type(arguments[0]) != argument:
+        func = arguments[0]
+        arguments = []
+        return inner(func)
+    return inner</code></pre>
+</details>
+</dd>
+<dt id="vastai.vast.apwrap.parse_args"><code class="name flex">
+<span>def <span class="ident">parse_args</span></span>(<span>self, argv=None, *a, **kw)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def parse_args(self, argv=None, *a, **kw):
+    if argv is None:
+        argv = sys.argv[1:]
+    argv_ = []
+    for x in argv:
+        if argv_ and argv_[-1] in self.verbs:
+            argv_[-1] += &#34; &#34; + x
+        else:
+            argv_.append(x)
+    args = self.parser.parse_args(argv_, *a, **kw)
+    for func in self.post_setup:
+        func(args)
+    return args</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="vastai" href="index.html">vastai</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="two-column">
+<li><code><a title="vastai.vast.apiurl" href="#vastai.vast.apiurl">apiurl</a></code></li>
+<li><code><a title="vastai.vast.deindent" href="#vastai.vast.deindent">deindent</a></code></li>
+<li><code><a title="vastai.vast.parse_query" href="#vastai.vast.parse_query">parse_query</a></code></li>
+<li><code><a title="vastai.vast.display_table" href="#vastai.vast.display_table">display_table</a></code></li>
+<li><code><a title="vastai.vast.search__offers" href="#vastai.vast.search__offers">search__offers</a></code></li>
+<li><code><a title="vastai.vast.show__instances" href="#vastai.vast.show__instances">show__instances</a></code></li>
+<li><code><a title="vastai.vast.show__machines" href="#vastai.vast.show__machines">show__machines</a></code></li>
+<li><code><a title="vastai.vast.list__machine" href="#vastai.vast.list__machine">list__machine</a></code></li>
+<li><code><a title="vastai.vast.unlist__machine" href="#vastai.vast.unlist__machine">unlist__machine</a></code></li>
+<li><code><a title="vastai.vast.remove__defjob" href="#vastai.vast.remove__defjob">remove__defjob</a></code></li>
+<li><code><a title="vastai.vast.set_ask" href="#vastai.vast.set_ask">set_ask</a></code></li>
+<li><code><a title="vastai.vast.start__instance" href="#vastai.vast.start__instance">start__instance</a></code></li>
+<li><code><a title="vastai.vast.stop__instance" href="#vastai.vast.stop__instance">stop__instance</a></code></li>
+<li><code><a title="vastai.vast.label__instance" href="#vastai.vast.label__instance">label__instance</a></code></li>
+<li><code><a title="vastai.vast.destroy__instance" href="#vastai.vast.destroy__instance">destroy__instance</a></code></li>
+<li><code><a title="vastai.vast.set__defjob" href="#vastai.vast.set__defjob">set__defjob</a></code></li>
+<li><code><a title="vastai.vast.create__instance" href="#vastai.vast.create__instance">create__instance</a></code></li>
+<li><code><a title="vastai.vast.change__bid" href="#vastai.vast.change__bid">change__bid</a></code></li>
+<li><code><a title="vastai.vast.set__min_bid" href="#vastai.vast.set__min_bid">set__min_bid</a></code></li>
+<li><code><a title="vastai.vast.set__api_key" href="#vastai.vast.set__api_key">set__api_key</a></code></li>
+<li><code><a title="vastai.vast.create__account" href="#vastai.vast.create__account">create__account</a></code></li>
+<li><code><a title="vastai.vast.login" href="#vastai.vast.login">login</a></code></li>
+<li><code><a title="vastai.vast.main" href="#vastai.vast.main">main</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="vastai.vast.argument" href="#vastai.vast.argument">argument</a></code></h4>
+</li>
+<li>
+<h4><code><a title="vastai.vast.hidden_aliases" href="#vastai.vast.hidden_aliases">hidden_aliases</a></code></h4>
+<ul class="">
+<li><code><a title="vastai.vast.hidden_aliases.append" href="#vastai.vast.hidden_aliases.append">append</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="vastai.vast.apwrap" href="#vastai.vast.apwrap">apwrap</a></code></h4>
+<ul class="two-column">
+<li><code><a title="vastai.vast.apwrap.fail_with_help" href="#vastai.vast.apwrap.fail_with_help">fail_with_help</a></code></li>
+<li><code><a title="vastai.vast.apwrap.add_argument" href="#vastai.vast.apwrap.add_argument">add_argument</a></code></li>
+<li><code><a title="vastai.vast.apwrap.subparsers" href="#vastai.vast.apwrap.subparsers">subparsers</a></code></li>
+<li><code><a title="vastai.vast.apwrap.get_name" href="#vastai.vast.apwrap.get_name">get_name</a></code></li>
+<li><code><a title="vastai.vast.apwrap.command" href="#vastai.vast.apwrap.command">command</a></code></li>
+<li><code><a title="vastai.vast.apwrap.parse_args" href="#vastai.vast.apwrap.parse_args">parse_args</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc"><cite>pdoc</cite> 0.7.1</a>.</p>
+</footer>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+<script>hljs.initHighlightingOnLoad()</script>
+</body>
+</html>
