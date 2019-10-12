@@ -1,6 +1,5 @@
 from vastai.api import VastClient, api_base_url, default_api_key_file
 from vastai.exceptions import Unauthorized
-#from .stubs import stubs.instances_json, stubs.user_json
 from . import stubs 
 import pytest
 import requests_mock
@@ -122,6 +121,7 @@ def test_get_instance(requests_mock, authorized_client):
       json=stubs.instances_json)
   instance = authorized_client.get_instance(384792)
   check_attrs(instance, stubs.instances_json['instances'][0])
+  return instance
     
 def test_start_instance(requests_mock, instance):
   requests_mock.put(api_base_url+"/instances/%s/?api_key=%s"%(instance.id, test_api_key), 
@@ -145,6 +145,16 @@ def test_destroy_instance(requests_mock, instance):
   instance.destroy()
   #log_request(requests_mock.last_request)
   assert requests_mock.last_request.method == 'DELETE'
+
+def test_instance_repr(instance):
+  assert instance.__repr__().strip() == stubs.instance_repr.strip()
+
+def test_instance_json(instance):
+  assert type(instance.__json__()) is str, "Should produce a string without raising an error."
+  
+def test_get_ssh_key(fs):
+  # TODO
+  pass
   
 def check_attrs(obj, attr_dict):
   """ Checks that all keys in attr_dict exist on obj, 

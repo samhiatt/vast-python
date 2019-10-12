@@ -1,6 +1,6 @@
-class APIError(Exception):
-    def __init__(self, instance_id, message=''):
-        super().__init__("Instance %s\n%s"%(instance_id, message))
+class InstanceError(Exception):
+    def __init__(self, message='', instance_id=None):
+        super().__init__("Error making request for Instance %s\n%s"%(instance_id, message))
 
 class Unauthorized(Exception):
     def __init__(self, message):

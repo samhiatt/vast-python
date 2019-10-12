@@ -1,3 +1,4 @@
+import logging
 import getpass
 import os
 import requests
@@ -7,7 +8,9 @@ from urllib.parse import quote_plus
 from collections import namedtuple
 from paramiko.client import SSHClient, AutoAddPolicy
 from paramiko.ssh_exception import NoValidConnectionsError
-from vastai.exceptions import APIError, Unauthorized, PrivateSshKeyNotFound
+from vastai.exceptions import InstanceError, Unauthorized, PrivateSshKeyNotFound
+from vastai.vast import display_table, displayable_fields
+import sys, io
 
 default_api_key_file = os.path.join(os.environ['HOME'],'.vast_api_key')
 api_base_url = "https://vast.ai/api/v0"
@@ -36,6 +39,7 @@ class VastClient:
         self.ssh_key = None
         self.api_key = None
         self.instance_ids = []
+        self.instances = []
         if 'VAST_API_KEY' in os.environ: 
             print("Initializing vast.ai client with api_key from VAST_API_KEY env var.")
             self.api_key = os.environ['VAST_API_KEY']
@@ -149,7 +153,7 @@ class VastClient:
         # print(json.dumps(r.json()))
         instances = r.json()["instances"]
         self.instance_ids = [instance['id'] for instance in instances]
-        self.instances = [Instance(self, **instance) for instance in instances]
+        self.instances = InstanceList([Instance(self, **instance) for instance in instances])
         return self.instances
     
     def _apiurl(self, subpath, **kwargs):
@@ -163,114 +167,123 @@ class VastClient:
         else:
             return api_base_url + subpath
 
-_InstanceField = namedtuple('InstanceField',"name format conversion")
-_displayable_fields = dict(
-    id =                   _InstanceField("ID",       "{}",       None),
-    actual_status =        _InstanceField("Status",   "{}",       None),
-    # cuda_max_good =        _InstanceField("CUDA",     "{:0.1f}",  None),
-    gpu_name =             _InstanceField("Model",    "{}",       None),
-    # pcie_bw =              _InstanceField("PCIE BW",  "{:0.1f}",  None),
-    num_gpus =             _InstanceField("GPUs",      "{}X",     None),
-    cpu_cores_effective =  _InstanceField("vCPUs",    "{:.0f}X",  None),
-    cpu_ram =              _InstanceField("RAM",      "{:0.1f}",  lambda x: x/1000),
-    disk_space =           _InstanceField("Storage",  "{:.0f}GB",     None),
-    dph_total =            _InstanceField("Cost",     "${:0.4f}/hr",  None),
-    # dlperf =               _InstanceField("DLPerf",   "{:0.1f}",   None),
-    # dlperf_per_dphtotal =  _InstanceField("DLP/$",    "{:0.1f}",   None),
-    inet_up =              _InstanceField("Net up",   "{:0.1f}",   None),
-    inet_down =            _InstanceField("Net down", "{:0.1f}",   None),
-    reliability2 =         _InstanceField("Reliability","{:0.1f}", lambda x: x * 100),
-    duration =             _InstanceField("Days Remaining", "{:0.1f}",   lambda x: x/(24.0*60.0*60.0)),
-)
+
+def _grab_display_table_out(instances):
+    output = io.StringIO()
+    sys.stdout = output
+    display_table(instances, displayable_fields)
+    sys.stdout = sys.__stdout__
+    result = output.getvalue()
+    return result    
+
+class InstanceList(list):
+    """ A list of Instances, returned by `VastClient.get_instances()`
+    """
+    def __dict__(self):
+        return {i.id:i.__dict__() for i in self}
+    def __json__(self):
+        return json.dumps([i.__dict__() for i in self])
+    def __repr__(self):
+        return _grab_display_table_out(self)
 
 class Instance:
-    def __init__(self, user, **kwargs):
+    def __init__(self, client, **kwargs):
+        """ Vast.ai Instance, instantiated by `VastClient.get_instances()`.
+            TODO: List Instance params
+        Params:
+            client (VastClient): 
+            **kwargs
+        """
         self.fields=[]
-        self.user = user
+        self.client = client
         for key in kwargs.keys():
             setattr(self, key, kwargs[key])
             self.fields.append(key)
         self.status = self.actual_status if hasattr(self, 'actual_status') else None
+
     def __repr__(self):
-        res = []
-        for key, field in _displayable_fields.items():
-            val = getattr(self,key) or ''
-            if field.conversion: val = field.conversion(val) if val else None
-            res.append(field.name+": "+(field.format.format(val) if val else '-'))
-        return ', '.join(res)
+        return _grab_display_table_out([self])
+
     def __dict__(self):
         return {k:getattr(self,k) for k in self.fields}
+
+    def __json__(self):
+        return json.dumps(self.__dict__())
+
+    def get(self, attr, default=None):
+        """ Gets a specified attribute from this Instance. 
+            Used by vastai.vast.display_table.
+        """
+        return getattr(self, attr) if hasattr(self, attr) else default
+
+    def _request(self, method, json_data):
+        """ Make http request to `<api_base_url>/instances/<instance.id>/` 
+        Params:
+            method (str): HTTP request method.
+            json_data (json): JSON data to send in request body.
+        Raises:
+            InstanceError: if request doesn't return data['success']
+        """
+        assert type(method) is str
+        assert method.lower() in ['get', 'put', 'post', 'update', 'delete']
+        url = self.client._apiurl("/instances/%s/"%self.id)
+        resp = requests.request(method, url, json=json_data)
+        resp.raise_for_status()
+        if resp.status_code == 200:
+            resp_data = resp.json()
+            if resp_data['success']:
+                logging.info(json.dumps(resp_data))
+                return resp_data
+            else:
+                logging.debug(json.dumps(resp_data))
+                raise InstanceError(resp_data['msg'], self.id)
+        else:
+            logging.debug(resp)
+            raise InstanceError(resp, self.id)
         
     def start(self):
-        """ Start a configured instance.
-        Raises: APIError
+        """ Starts this configured instance.
+        Raises: 
+            InstanceError: if request doesn't return data['success']
         """
-        url = self.user._apiurl("/instances/%s/"%self.id)
-        r = requests.put(url, json={ "state": "running" })
-        r.raise_for_status()
-        if (r.status_code == 200):
-            rj = r.json()
-            # print(json.dumps(rj))
-            if (rj["success"]):
-                print("Starting instance %i."%self.id )
-            else:
-                raise APIError(self.id, rj["msg"])
-        else:
-            print("Start instance request failed with error: %s"%r.status_code)
-            raise APIError(self.id, r.text)
-            
+        self._request('put',{ "state": "running" })
+        print("Starting instance %i."%self.id )
+
     def stop(self):
-        """ Stop a configured instance.
-        Raises: APIError
+        """ Stops this configured instance. You can restart the instance later. 
+        Raises: 
+            InstanceError: if request doesn't return data['success']
         """
-        url = self.user._apiurl("/instances/%s/"%self.id)
-        r = requests.put(url, json={"state": "stopped"})
-        r.raise_for_status()
-        if (r.status_code == 200):
-            rj = r.json()
-            if (rj["success"]):
-                print("Stopping instance %i."%self.id )
-            else:
-                raise APIError(self.id, 
-                    "Error stopping instance.\n%s"%rj["msg"])
-        else:
-            raise APIError(self.id, 
-                "Stop instance request failed with error: %s\n%s"%(r.status_code,r.text))
-            
+        self._request('put', {"state": "stopped"})
+        print("Stopping instance %i."%self.id )
+
     def destroy(self):
-        url = self.user._apiurl("/instances/%s/"%self.id)
-        r = requests.delete(url, json={})
-        r.raise_for_status()
-        if (r.status_code == 200):
-            rj = r.json();
-            if (rj["success"]):
-                print("Destroying instance %s."%self.id )
-            else:
-                raise APIError(self.id, 
-                    "Error destroying instance.\n%s"%rj["msg"])
-        else:
-            raise APIError(self.id, 
-                "Destroy instance request failed with error: %s\n%s"%(r.status_code,r.text))
+        """ Destroys this configured instance. All data on the remote instance will be lost.
+        Raises: 
+            InstanceError: if request doesn't return data['success']
+        """
+        self._request('delete',{})
+        print("Destroying instance %s"%self.id)
             
     def run_command(self, command_str):
         """
-            Executes `command_str` on this vast.ai instance.
+            Uses paramiko ssh client to execute `command_str` on this remote Instance.
+        Params:
+            
         """
         ssh_client = SSHClient()
         ssh_client.set_missing_host_key_policy(AutoAddPolicy)
         print("Connecting to %s:%i "%(self.ssh_host,self.ssh_port))
         try:
             ssh_client.connect(self.ssh_host, port=int(self.ssh_port), 
-                       username='root', key_filename=self.user.get_ssh_key_file())
+                       username='root', key_filename=self.client.get_ssh_key_file())
             print("Running command '%s'"%command_str)
             stdin, stdout, stderr = ssh_client.exec_command(command_str)
             print(stdout.read().decode('utf-8'))
             print(stderr.read().decode('utf-8'))
     
         # except NoValidConnectionsError as err:
-        #     raise APIError(self.id, err.errors)
-        # except Exception as err:
-        #     raise APIError(self.id, str(err))
+        #     raise InstanceError(self.id, err.errors)
         finally:
             ssh_client.close()
             
