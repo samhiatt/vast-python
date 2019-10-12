@@ -30,8 +30,8 @@ def authorized_client(requests_mock, api_key_file):
   new_client = VastClient(api_key_file=api_key_file)
   assert type(new_client) is VastClient,    "Should be a VastClient object."
   assert new_client.api_key is None, "Shouldn't have an api_key yet."
-  retVal = new_client.login('john_doe','abc123')
-  assert retVal is new_client, "Client.login should return self."
+  retVal = new_client.authenticate('john_doe','abc123')
+  assert retVal is new_client, "Client.authenticate should return self."
   assert new_client.api_key == test_api_key
   assert requests_mock.last_request.json() == {'username': 'john_doe', 'password': 'abc123'}
   check_attrs(new_client, json_data)
@@ -58,7 +58,7 @@ def test_bad_login(requests_mock, fs):
   client = VastClient()
   assert client.api_key_file == default_api_key_file
   with pytest.raises(Unauthorized):
-    retVal = client.login('aFakeUser','badPassword')
+    retVal = client.authenticate('aFakeUser','badPassword')
     assert retVal.api_key is None
   assert requests_mock.last_request.json() == {'username': 'aFakeUser', 'password': 'badPassword'}
 
@@ -67,7 +67,7 @@ def test_api_key_env_var(requests_mock, monkeypatch):
   client = VastClient()
   assert client.api_key == test_api_key, "api_key should be set from VAST_API_KEY env var."
   requests_mock.get(api_base_url+"/users/current/?api_key=%s"%(client.api_key), json=stubs.user_json)
-  client.login()
+  client.authenticate()
   check_attrs(client, stubs.user_json)
 
 #@pytest.fixture
@@ -78,7 +78,7 @@ def test_api_key_env_var(requests_mock, monkeypatch):
 #  return fs
 
 def test_username_password_env_vars(requests_mock, monkeypatch, fs):
-  """ Tests login with username and password set in environment variables. 
+  """ Tests authentication with username and password set in environment variables. 
   Params:
       requests_mock: Network request mocker.
       monkeypatch: Used for mocking env variables.
@@ -91,14 +91,14 @@ def test_username_password_env_vars(requests_mock, monkeypatch, fs):
   assert client.api_key is None, "api_key shouldn't be set yet."
   requests_mock.put(api_base_url+"/users/current/", json=stubs.user_json)
   fs.create_dir(os.path.dirname(default_api_key_file))
-  client.login()
+  client.authenticate()
   assert client.api_key_file == default_api_key_file
   with open(client.api_key_file) as f:
     assert f.read() == client.api_key, "Contents of %s should match client.api_key"%default_api_key_file
   check_attrs(client, stubs.user_json)
   assert client.api_key == test_api_key, "Retrieved api key should match test_api_key."
 
-def test_login_with_api_key_file(requests_mock, authorized_client):
+def test_authentication_with_api_key_file(requests_mock, authorized_client):
   assert os.path.exists(authorized_client.api_key_file), "api_key_file should exist."
   json_data = {"id": 1234, "username": "john_doe", "ssh_key": "ssh-rsa AAAA..."}
   requests_mock.get(api_base_url+"/users/current/?api_key=%s"%(authorized_client.api_key), json=json_data)
@@ -106,7 +106,7 @@ def test_login_with_api_key_file(requests_mock, authorized_client):
   assert new_client.api_key is not None, "new_client.api_key should be set."
   assert new_client.api_key == authorized_client.api_key, \
          "new_client.api_key should match authorized_client.api_key."
-  new_client.login()
+  new_client.authenticate()
   assert new_client.api_key == authorized_client.api_key
   check_attrs(new_client, json_data)
 

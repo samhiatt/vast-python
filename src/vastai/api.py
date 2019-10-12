@@ -48,7 +48,7 @@ class VastClient:
                  ((" and save in "+self.api_key_file) if self.api_key_file else ""))
             
 
-    def login(self, username=None, password=None):
+    def authenticate(self, username=None, password=None):
         """
         Get api_key using username and password.
         Args:
