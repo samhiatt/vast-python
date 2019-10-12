@@ -94,26 +94,6 @@ class PrivateSshKeyNotFound(Exception):
 <li>builtins.BaseException</li>
 </ul>
 </dd>
-<dt id="vastai.exceptions.ApiKeyNotSet"><code class="flex name class">
-<span>class <span class="ident">ApiKeyNotSet</span></span>
-</code></dt>
-<dd>
-<section class="desc"><p>Common base class for all non-exit exceptions.</p></section>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class ApiKeyNotSet(Exception):
-    def __init__(self):
-        super().__init__(&#34;Vast.ai API key not set. Set by calling login, setting VAST_API_KEY &#34;+\
-                         &#34;env variable, or specifying path to .vast_api_key file.&#34;)</code></pre>
-</details>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>builtins.Exception</li>
-<li>builtins.BaseException</li>
-</ul>
-</dd>
 <dt id="vastai.exceptions.PrivateSshKeyNotFound"><code class="flex name class">
 <span>class <span class="ident">PrivateSshKeyNotFound</span></span>
 <span>(</span><span>key_dir, pub_key)</span>
@@ -130,6 +110,26 @@ class PrivateSshKeyNotFound(Exception):
             &#34;Could not find ssh key in %s matching public key:\n%s&#34;%(
             key_dir,pub_key)
         )</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="vastai.exceptions.ApiKeyNotSet"><code class="flex name class">
+<span>class <span class="ident">ApiKeyNotSet</span></span>
+</code></dt>
+<dd>
+<section class="desc"><p>Common base class for all non-exit exceptions.</p></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ApiKeyNotSet(Exception):
+    def __init__(self):
+        super().__init__(&#34;Vast.ai API key not set. Set by calling login, setting VAST_API_KEY &#34;+\
+                         &#34;env variable, or specifying path to .vast_api_key file.&#34;)</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
@@ -160,10 +160,10 @@ class PrivateSshKeyNotFound(Exception):
 <h4><code><a title="vastai.exceptions.Unauthorized" href="#vastai.exceptions.Unauthorized">Unauthorized</a></code></h4>
 </li>
 <li>
-<h4><code><a title="vastai.exceptions.ApiKeyNotSet" href="#vastai.exceptions.ApiKeyNotSet">ApiKeyNotSet</a></code></h4>
+<h4><code><a title="vastai.exceptions.PrivateSshKeyNotFound" href="#vastai.exceptions.PrivateSshKeyNotFound">PrivateSshKeyNotFound</a></code></h4>
 </li>
 <li>
-<h4><code><a title="vastai.exceptions.PrivateSshKeyNotFound" href="#vastai.exceptions.PrivateSshKeyNotFound">PrivateSshKeyNotFound</a></code></h4>
+<h4><code><a title="vastai.exceptions.ApiKeyNotSet" href="#vastai.exceptions.ApiKeyNotSet">ApiKeyNotSet</a></code></h4>
 </li>
 </ul>
 </li>
