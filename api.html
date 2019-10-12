@@ -325,6 +325,31 @@ class Instance:
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
+<dt id="vastai.api.InstanceList"><code class="flex name class">
+<span>class <span class="ident">InstanceList</span></span>
+<span>(</span><span>*args, **kwargs)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>A list of Instances, returned by <a title="vastai.api.VastClient.get_instances" href="#vastai.api.VastClient.get_instances"><code>VastClient.get_instances()</code></a></p></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class InstanceList(list):
+    &#34;&#34;&#34; A list of Instances, returned by `VastClient.get_instances()`
+    &#34;&#34;&#34;
+    def __dict__(self):
+        return {i.id:i.__dict__() for i in self}
+    def __json__(self):
+        return json.dumps([i.__dict__() for i in self])
+    def __repr__(self):
+        return _grab_display_table_out(self)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.list</li>
+</ul>
+</dd>
 <dt id="vastai.api.VastClient"><code class="flex name class">
 <span>class <span class="ident">VastClient</span></span>
 <span>(</span><span>api_key_file='/home/travis/.vast_api_key', ssh_key_dir=None)</span>
@@ -502,6 +527,38 @@ instances. (default: ~/.ssh/)</dd>
 </details>
 <h3>Methods</h3>
 <dl>
+<dt id="vastai.api.VastClient.get_instances"><code class="name flex">
+<span>def <span class="ident">get_instances</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Retrievs a list of user's configured instances.
+Returns:
+:<code>list</code>: of :obj:<a title="vastai.api.Instance" href="#vastai.api.Instance"><code>Instance</code></a>: A list of configured Instances.
+Raises:
+ApiKeyNotSet: if user.api_key is not set.</p></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_instances(self):
+    &#34;&#34;&#34; Retrievs a list of user&#39;s configured instances.
+    Returns: 
+        :`list`: of :obj:`Instance`: A list of configured Instances. 
+    Raises: 
+        ApiKeyNotSet: if user.api_key is not set.
+    &#34;&#34;&#34;
+    if self.api_key is None: raise ApiKeyNotSet()
+    
+    req_url = self._apiurl(&#34;/instances&#34;, owner=&#34;me&#34;);
+    r = requests.get(req_url);
+    r.raise_for_status()
+    # print(json.dumps(r.json()))
+    instances = r.json()[&#34;instances&#34;]
+    self.instance_ids = [instance[&#39;id&#39;] for instance in instances]
+    self.instances = InstanceList([Instance(self, **instance) for instance in instances])
+    return self.instances</code></pre>
+</details>
+</dd>
 <dt id="vastai.api.VastClient.authenticate"><code class="name flex">
 <span>def <span class="ident">authenticate</span></span>(<span>self, username=None, password=None)</span>
 </code></dt>
@@ -597,64 +654,7 @@ looks for password in VAST_PASSWORD env variable or uses
     return self.instances[idx] if idx &gt;= 0 else None</code></pre>
 </details>
 </dd>
-<dt id="vastai.api.VastClient.get_instances"><code class="name flex">
-<span>def <span class="ident">get_instances</span></span>(<span>self)</span>
-</code></dt>
-<dd>
-<section class="desc"><p>Retrievs a list of user's configured instances.
-Returns:
-:<code>list</code>: of :obj:<a title="vastai.api.Instance" href="#vastai.api.Instance"><code>Instance</code></a>: A list of configured Instances.
-Raises:
-ApiKeyNotSet: if user.api_key is not set.</p></section>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def get_instances(self):
-    &#34;&#34;&#34; Retrievs a list of user&#39;s configured instances.
-    Returns: 
-        :`list`: of :obj:`Instance`: A list of configured Instances. 
-    Raises: 
-        ApiKeyNotSet: if user.api_key is not set.
-    &#34;&#34;&#34;
-    if self.api_key is None: raise ApiKeyNotSet()
-    
-    req_url = self._apiurl(&#34;/instances&#34;, owner=&#34;me&#34;);
-    r = requests.get(req_url);
-    r.raise_for_status()
-    # print(json.dumps(r.json()))
-    instances = r.json()[&#34;instances&#34;]
-    self.instance_ids = [instance[&#39;id&#39;] for instance in instances]
-    self.instances = InstanceList([Instance(self, **instance) for instance in instances])
-    return self.instances</code></pre>
-</details>
-</dd>
 </dl>
-</dd>
-<dt id="vastai.api.InstanceList"><code class="flex name class">
-<span>class <span class="ident">InstanceList</span></span>
-<span>(</span><span>*args, **kwargs)</span>
-</code></dt>
-<dd>
-<section class="desc"><p>A list of Instances, returned by <a title="vastai.api.VastClient.get_instances" href="#vastai.api.VastClient.get_instances"><code>VastClient.get_instances()</code></a></p></section>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class InstanceList(list):
-    &#34;&#34;&#34; A list of Instances, returned by `VastClient.get_instances()`
-    &#34;&#34;&#34;
-    def __dict__(self):
-        return {i.id:i.__dict__() for i in self}
-    def __json__(self):
-        return json.dumps([i.__dict__() for i in self])
-    def __repr__(self):
-        return _grab_display_table_out(self)</code></pre>
-</details>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>builtins.list</li>
-</ul>
 </dd>
 <dt id="vastai.api.Instance"><code class="flex name class">
 <span>class <span class="ident">Instance</span></span>
@@ -777,23 +777,6 @@ TODO: List Instance params</p>
 </details>
 <h3>Methods</h3>
 <dl>
-<dt id="vastai.api.Instance.get"><code class="name flex">
-<span>def <span class="ident">get</span></span>(<span>self, attr, default=None)</span>
-</code></dt>
-<dd>
-<section class="desc"><p>Gets a specified attribute from this Instance.
-Used by vastai.vast.display_table.</p></section>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def get(self, attr, default=None):
-    &#34;&#34;&#34; Gets a specified attribute from this Instance. 
-        Used by vastai.vast.display_table.
-    &#34;&#34;&#34;
-    return getattr(self, attr) if hasattr(self, attr) else default</code></pre>
-</details>
-</dd>
 <dt id="vastai.api.Instance.start"><code class="name flex">
 <span>def <span class="ident">start</span></span>(<span>self)</span>
 </code></dt>
@@ -812,26 +795,6 @@ InstanceError: if request doesn't return data['success']</p></section>
     &#34;&#34;&#34;
     self._request(&#39;put&#39;,{ &#34;state&#34;: &#34;running&#34; })
     print(&#34;Starting instance %i.&#34;%self.id )</code></pre>
-</details>
-</dd>
-<dt id="vastai.api.Instance.stop"><code class="name flex">
-<span>def <span class="ident">stop</span></span>(<span>self)</span>
-</code></dt>
-<dd>
-<section class="desc"><p>Stops this configured instance. You can restart the instance later.
-Raises:
-InstanceError: if request doesn't return data['success']</p></section>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def stop(self):
-    &#34;&#34;&#34; Stops this configured instance. You can restart the instance later. 
-    Raises: 
-        InstanceError: if request doesn&#39;t return data[&#39;success&#39;]
-    &#34;&#34;&#34;
-    self._request(&#39;put&#39;, {&#34;state&#34;: &#34;stopped&#34;})
-    print(&#34;Stopping instance %i.&#34;%self.id )</code></pre>
 </details>
 </dd>
 <dt id="vastai.api.Instance.destroy"><code class="name flex">
@@ -887,6 +850,43 @@ Params:</p></section>
         ssh_client.close()</code></pre>
 </details>
 </dd>
+<dt id="vastai.api.Instance.stop"><code class="name flex">
+<span>def <span class="ident">stop</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Stops this configured instance. You can restart the instance later.
+Raises:
+InstanceError: if request doesn't return data['success']</p></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def stop(self):
+    &#34;&#34;&#34; Stops this configured instance. You can restart the instance later. 
+    Raises: 
+        InstanceError: if request doesn&#39;t return data[&#39;success&#39;]
+    &#34;&#34;&#34;
+    self._request(&#39;put&#39;, {&#34;state&#34;: &#34;stopped&#34;})
+    print(&#34;Stopping instance %i.&#34;%self.id )</code></pre>
+</details>
+</dd>
+<dt id="vastai.api.Instance.get"><code class="name flex">
+<span>def <span class="ident">get</span></span>(<span>self, attr, default=None)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Gets a specified attribute from this Instance.
+Used by vastai.vast.display_table.</p></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get(self, attr, default=None):
+    &#34;&#34;&#34; Gets a specified attribute from this Instance. 
+        Used by vastai.vast.display_table.
+    &#34;&#34;&#34;
+    return getattr(self, attr) if hasattr(self, attr) else default</code></pre>
+</details>
+</dd>
 </dl>
 </dd>
 </dl>
@@ -906,24 +906,24 @@ Params:</p></section>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="vastai.api.VastClient" href="#vastai.api.VastClient">VastClient</a></code></h4>
-<ul class="">
-<li><code><a title="vastai.api.VastClient.authenticate" href="#vastai.api.VastClient.authenticate">authenticate</a></code></li>
-<li><code><a title="vastai.api.VastClient.get_instance" href="#vastai.api.VastClient.get_instance">get_instance</a></code></li>
-<li><code><a title="vastai.api.VastClient.get_instances" href="#vastai.api.VastClient.get_instances">get_instances</a></code></li>
-</ul>
+<h4><code><a title="vastai.api.InstanceList" href="#vastai.api.InstanceList">InstanceList</a></code></h4>
 </li>
 <li>
-<h4><code><a title="vastai.api.InstanceList" href="#vastai.api.InstanceList">InstanceList</a></code></h4>
+<h4><code><a title="vastai.api.VastClient" href="#vastai.api.VastClient">VastClient</a></code></h4>
+<ul class="">
+<li><code><a title="vastai.api.VastClient.get_instances" href="#vastai.api.VastClient.get_instances">get_instances</a></code></li>
+<li><code><a title="vastai.api.VastClient.authenticate" href="#vastai.api.VastClient.authenticate">authenticate</a></code></li>
+<li><code><a title="vastai.api.VastClient.get_instance" href="#vastai.api.VastClient.get_instance">get_instance</a></code></li>
+</ul>
 </li>
 <li>
 <h4><code><a title="vastai.api.Instance" href="#vastai.api.Instance">Instance</a></code></h4>
 <ul class="">
-<li><code><a title="vastai.api.Instance.get" href="#vastai.api.Instance.get">get</a></code></li>
 <li><code><a title="vastai.api.Instance.start" href="#vastai.api.Instance.start">start</a></code></li>
-<li><code><a title="vastai.api.Instance.stop" href="#vastai.api.Instance.stop">stop</a></code></li>
 <li><code><a title="vastai.api.Instance.destroy" href="#vastai.api.Instance.destroy">destroy</a></code></li>
 <li><code><a title="vastai.api.Instance.run_command" href="#vastai.api.Instance.run_command">run_command</a></code></li>
+<li><code><a title="vastai.api.Instance.stop" href="#vastai.api.Instance.stop">stop</a></code></li>
+<li><code><a title="vastai.api.Instance.get" href="#vastai.api.Instance.get">get</a></code></li>
 </ul>
 </li>
 </ul>

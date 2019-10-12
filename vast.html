@@ -1042,6 +1042,229 @@ if __name__ == &#34;__main__&#34;:
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
+<dt id="vastai.vast.stop__instance"><code class="name flex">
+<span>def <span class="ident">stop__instance</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@parser.command(
+    argument(&#34;id&#34;,            help=&#34;id of instance to stop&#34;, type=int),
+    usage = &#34;vast stop instance [--raw] &lt;id&gt;&#34;,
+)
+def stop__instance(args):
+    url = apiurl(args, &#34;/instances/{id}/&#34;.format(id=args.id))
+    r = requests.put(url, json={
+        &#34;state&#34;: &#34;stopped&#34;
+    })
+    r.raise_for_status()
+
+    if (r.status_code == 200) :
+        rj = r.json();
+        if (rj[&#34;success&#34;]) :
+            print(&#34;stopping instance {args.id}.&#34;.format(**(locals())) );
+        else :
+            print(rj[&#34;msg&#34;]);
+    else :
+        print(r.text);
+        print(&#34;failed with error {r.status_code}&#34;.format(**locals()));</code></pre>
+</details>
+</dd>
+<dt id="vastai.vast.set_ask"><code class="name flex">
+<span>def <span class="ident">set_ask</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def set_ask(args):
+    print(&#34;set asks!\n&#34;);</code></pre>
+</details>
+</dd>
+<dt id="vastai.vast.set__min_bid"><code class="name flex">
+<span>def <span class="ident">set__min_bid</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@parser.command(
+    argument(&#34;id&#34;,            help=&#34;id of machine to set min bid price for&#34;, type=int),
+    argument(&#34;--price&#34;,       help=&#34;per gpu min bid price in $/hour&#34;, type=float),
+    usage = &#34;vast set min_bid id [--price PRICE]&#34;,
+    epilog = deindent(&#34;&#34;&#34;
+        Change the current min bid price of machine id to PRICE.
+    &#34;&#34;&#34;),
+)
+def set__min_bid(args):
+    url = apiurl(args, &#34;/machines/{id}/minbid/&#34;.format(id=args.id))
+    r = requests.put(url, json={
+        &#34;client_id&#34;: &#34;me&#34;,
+        &#34;price&#34; : args.price,
+    })
+    r.raise_for_status()
+    print(&#34;Per gpu min bid price changed&#34;.format(r.json()))</code></pre>
+</details>
+</dd>
+<dt id="vastai.vast.deindent"><code class="name flex">
+<span>def <span class="ident">deindent</span></span>(<span>message)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>deindent a quoted string</p></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def deindent(message):
+    &#34;&#34;&#34;
+    deindent a quoted string
+    &#34;&#34;&#34;
+    message = re.sub(r&#34; *$&#34;, &#34;&#34;, message, flags=re.MULTILINE)
+    indents = [len(x) for x in re.findall(&#34;^ *(?=[^ ])&#34;, message, re.MULTILINE) if len(x)]
+    a = min(indents)
+    message = re.sub(r&#34;^ {,&#34; + str(a) + &#34;}&#34;, &#34;&#34;, message, flags=re.MULTILINE)
+    return message.strip()</code></pre>
+</details>
+</dd>
+<dt id="vastai.vast.destroy__instance"><code class="name flex">
+<span>def <span class="ident">destroy__instance</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@parser.command(
+    argument(&#34;id&#34;,            help=&#34;id of instance to delete&#34;, type=int),
+    usage=&#34;vast destroy instance id [-h] [--api-key API_KEY] [--raw]&#34;
+)
+def destroy__instance(args):
+    url = apiurl(args, &#34;/instances/{id}/&#34;.format(id=args.id))
+    r = requests.delete(url, json={})
+    r.raise_for_status()
+    
+
+    if (r.status_code == 200) :
+        rj = r.json();
+        if (rj[&#34;success&#34;]) :
+            print(&#34;destroying instance {args.id}.&#34;.format(**(locals())) );
+        else :
+            print(rj[&#34;msg&#34;]);
+    else :
+        print(r.text);
+        print(&#34;failed with error {r.status_code}&#34;.format(**locals()));</code></pre>
+</details>
+</dd>
+<dt id="vastai.vast.show__instances"><code class="name flex">
+<span>def <span class="ident">show__instances</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@parser.command(
+    usage=&#34;vast show instances [--api-key API_KEY] [--raw]&#34;,
+)
+def show__instances(args):
+    req_url = apiurl(args, &#34;/instances&#34;, {&#34;owner&#34;: &#34;me&#34;});
+    r = requests.get(req_url);
+    r.raise_for_status()
+    rows = r.json()[&#34;instances&#34;]
+    if args.raw:
+        print(json.dumps(rows, indent=1, sort_keys=True))
+    else:
+        display_table(rows, instance_fields)</code></pre>
+</details>
+</dd>
+<dt id="vastai.vast.set__defjob"><code class="name flex">
+<span>def <span class="ident">set__defjob</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@parser.command(
+    argument(&#34;id&#34;,            help=&#34;id of machine to launch default instance on&#34;, type=int),
+    argument(&#34;--price_gpu&#34;,   help=&#34;per gpu rental price in $/hour&#34;, type=float),
+    argument(&#34;--price_inetu&#34;, help=&#34;price for internet upload bandwidth in $/GB&#34;, type=float),
+    argument(&#34;--price_inetd&#34;, help=&#34;price for internet download bandwidth in $/GB&#34;, type=float),
+    argument(&#34;--image&#34;,       help=&#34;docker container image to launch&#34;, type=str),
+    argument(&#34;--args&#34;,        nargs=argparse.REMAINDER, help=&#34;list of arguments passed to container launch&#34;),
+    usage=&#34;vast set defjob id [--api-key API_KEY] [--price_gpu PRICE_GPU] [--price_inetu PRICE_INETU] [--price_inetd PRICE_INETD] [--image IMAGE] [--args ...]&#34;
+)
+def set__defjob(args):
+    #req_url = args.url + &#34;/machines/create_asks/?user_id=&#34; + str(args.user);
+    req_url    = apiurl(args, &#34;/machines/create_bids/&#34;);
+
+    #print(&#34;PUT &#34; + req_url);
+    r = requests.put(req_url, json = 
+        {&#39;machine&#39;:args.id, &#39;price_gpu&#39;:args.price_gpu, &#39;price_inetu&#39;:args.price_inetu, &#39;price_inetd&#39;:args.price_inetd,
+         &#39;image&#39;:args.image, &#39;args&#39;:args.args } );
+    
+    if (r.status_code == 200) :
+        #print(r.text);
+        rj = r.json();
+        if (rj[&#34;success&#34;]) :
+            print(&#34;bids created for machine {args.id},  @ ${args.price_gpu}/gpu/day, ${args.price_inetu}/GB up, ${args.price_inetd}/GB down&#34;.format(**locals()));
+        else :
+            print(rj[&#34;msg&#34;]);
+    else :
+        print(r.text);
+        print(&#34;failed with error {r.status_code}&#34;.format(**locals()));</code></pre>
+</details>
+</dd>
+<dt id="vastai.vast.login"><code class="name flex">
+<span>def <span class="ident">login</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@parser.command(
+    argument(&#34;username&#34;,    help=&#34;Username or Email&#34;, nargs=&#34;?&#34;, default=None),
+    argument(&#34;password&#34;,    help=&#34;Password&#34;, nargs=&#34;?&#34;, default=None),
+    argument(&#34;--ssh-key&#34;,     help=&#34;The SSH Pubkey you&#39;d like to use to connect to containers&#34;),
+    usage = &#34;vast login [--username USERNAME] [--password PASSWORD] [--api-key API_KEY] [--ssh-key SSH_KEY]&#34;,
+)
+def login(args):
+    if args.username is None:
+        args.username = input(&#34;Username or Email: &#34;);
+    if args.password is None:
+        try:
+            # weird try/except is because windows gives a typeerror on this line
+            args.password = getpass.getpass(&#34;Password: &#34;);
+        except TypeError:
+            try:
+                args.password = getpass.getpass(&#34;Password: &#34;.encode(&#34;utf-8&#34;))
+            except TypeError:
+                args.password = raw_input(&#34;Password: &#34;)
+
+    url = apiurl(args, &#34;/users/current/&#34;);
+    print(url)
+    
+    r = requests.put(url,
+            json={&#39;username&#39;: args.username, &#39;password&#39;: args.password} );
+    r.raise_for_status()
+    resp = r.json()
+    print(&#34;You are user {}! Your existing api key: {}&#34;.format(resp[&#34;id&#34;], resp[&#34;api_key&#34;]))
+    args.api_key = resp[&#34;api_key&#34;]
+    set__api_key(args)</code></pre>
+</details>
+</dd>
 <dt id="vastai.vast.apiurl"><code class="name flex">
 <span>def <span class="ident">apiurl</span></span>(<span>args, subpath, query_args=None)</span>
 </code></dt>
@@ -1071,24 +1294,269 @@ if __name__ == &#34;__main__&#34;:
         return args.url + subpath</code></pre>
 </details>
 </dd>
-<dt id="vastai.vast.deindent"><code class="name flex">
-<span>def <span class="ident">deindent</span></span>(<span>message)</span>
+<dt id="vastai.vast.show__machines"><code class="name flex">
+<span>def <span class="ident">show__machines</span></span>(<span>args)</span>
 </code></dt>
 <dd>
-<section class="desc"><p>deindent a quoted string</p></section>
+<section class="desc"></section>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def deindent(message):
-    &#34;&#34;&#34;
-    deindent a quoted string
-    &#34;&#34;&#34;
-    message = re.sub(r&#34; *$&#34;, &#34;&#34;, message, flags=re.MULTILINE)
-    indents = [len(x) for x in re.findall(&#34;^ *(?=[^ ])&#34;, message, re.MULTILINE) if len(x)]
-    a = min(indents)
-    message = re.sub(r&#34;^ {,&#34; + str(a) + &#34;}&#34;, &#34;&#34;, message, flags=re.MULTILINE)
-    return message.strip()</code></pre>
+<pre><code class="python">@parser.command(
+    argument(&#34;-q&#34;, &#34;--quiet&#34;, action=&#34;store_true&#34;, help=&#34;only display numeric ids&#34;),
+    usage = &#34;vast show machines [OPTIONS]&#34;,
+)
+def show__machines(args):
+    req_url = apiurl(args, &#34;/machines&#34;, {&#34;owner&#34;: &#34;me&#34;});
+    r = requests.get(req_url);
+    r.raise_for_status()
+    rows = r.json()[&#34;machines&#34;]
+    if args.raw:
+        print(json.dumps(rows, indent=1, sort_keys=True))
+    else:
+        for machine in rows:
+            if args.quiet:
+                print(&#34;{id}&#34;.format(id=machine[&#34;id&#34;]))
+            else:
+                print(&#34;{N} machines: &#34;.format(N=len(rows)) );
+                print(&#34;{id}: {json}&#34;.format(id=machine[&#34;id&#34;], json=json.dumps(machine, indent=4, sort_keys=True)))</code></pre>
+</details>
+</dd>
+<dt id="vastai.vast.main"><code class="name flex">
+<span>def <span class="ident">main</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def main():
+    parser.add_argument(&#34;--url&#34;, help=&#34;server REST api url&#34;, default=server_url_default)
+    parser.add_argument(&#34;--raw&#34;, action=&#34;store_true&#34;, help=&#34;output machine-readable json&#34;);
+    parser.add_argument(&#34;--api-key&#34;,     help=&#34;api key. defaults to using the one stored in {}&#34;.format(api_key_file_base), type=str, required=False, default=api_key_guard)
+
+    #func_dict = {
+    #    &#34;set defjob&#34;:               set_defjob,
+    #    &#34;remove defjob&#34;:            remove_defjob,
+    #    #&#34;accept ask&#34;:              accept_ask,
+    #    #&#34;exec bid&#34;:                create_bid,
+    #    #&#34;set ask&#34;:                 set_ask,
+    #    #&#34;list asks&#34;:               list_asks,
+    #    &#34;create account&#34;:           create_account,
+    #    &#34;login&#34;:                    login,
+    #    &#34;create instance&#34;:          create_instance,
+    #    &#34;change bid&#34;:               change_bid,
+    #    &#34;destroy instance&#34;:         destroy_instance,
+    #    &#34;start instance&#34;:           start_instance,
+    #    &#34;stop instance&#34;:            stop_instance,
+    #    &#34;label instance&#34;:           label_instance,
+    #    &#34;list machine&#34;:             list_machine,
+    #    &#34;unlist machine&#34;:           unlist_machine,
+    #    #&#34;search offers&#34;:         search_instances,
+    #    &#34;show instances&#34;:           show_instances,
+    #    &#34;show host-instances&#34;:      host_instances,
+    #    &#34;show machines&#34;:            show_machines,
+    #    &#34;set min-bid&#34;:              set_min_bid,
+    #    &#34;set api-key&#34;:              set_api_key_cmd,
+    #}
+
+
+    func_help = [
+        &#34;General:&#34;,
+        &#34;create account          Create a new account with a username and password&#34;,
+        &#34;login                   Login to an account and or switch accounts&#34;,
+        &#34;set api-key             Set account via api key&#34;,
+        &#34;&#34;,
+        &#34;Client:&#34;,
+        &#34;create instance         Accept an offer and launch a new container instance&#34;,
+        &#34;destroy instance        Stop and destroy an existing container instance, deleting local storage&#34;,
+        &#34;change bid              Set a new bid price for an interruptible instance&#34;,
+        &#34;label instance          Set label for existing instance&#34;,
+        &#34;start instance          Start/restart an existing stopped container instance&#34;,
+        &#34;stop instance           Stop and hibernate an existing container instance; local storage persists&#34;,
+        &#34;search offers           Search for available instances to rent that match specific criteria&#34;,
+        &#34;show instances          Show all your current rental instances&#34;,
+        &#34;&#34;,
+        &#34;Host:&#34;,
+        &#34;show machines           Show all your physical machines connected to vast.ai&#34;,
+        &#34;set defjob              Change/configure the default low-priority instance to run on a machine&#34;,
+        &#34;remove defjob           remove any default instance from a machine&#34;,
+        &#34;list machine            List a machine for rental: creates and registers one or more instance offers with pricing&#34;,
+        &#34;unlist machine          Unlist a machine: destroys and unregisters instance offers (but doesn&#39;t effect any active instances)&#34;,
+        &#34;set min-bid             Set minimum per gpu bid price&#34;,
+    ]
+    
+    #cmd0 = &#34;&#34;; cmd1 = &#34;&#34;;
+    #
+    #if len(sys.argv) &gt; 1:
+    #    if (sys.argv[1] == &#34;help&#34;):
+    #        sys.argv[1:2] = []
+    #        sys.argv.append(&#34;--help&#34;)
+    #if len(sys.argv) &gt; 1: cmd0 = sys.argv[1];
+
+    #command_type = cmd0;
+        
+    #if (cmd0 not in func_dict):
+    #    if len(sys.argv) &gt; 2: cmd1 = sys.argv[2];
+    #    command_type = cmd0 + &#39; &#39; + cmd1;
+    
+    #print(&#34;command: {}&#34;.format(command_type));
+
+    #parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter);
+
+    args = parser.parse_args()
+    if args.api_key is api_key_guard:
+        if os.path.exists(api_key_file):
+            with open(api_key_file, &#34;r&#34;) as reader:
+                args.api_key = reader.read().strip()
+        else:
+            args.api_key = None
+    try:
+        sys.exit(args.func(args) or 0)
+    except requests.exceptions.HTTPError as e :
+        try:
+            errmsg = e.response.json().get(&#34;msg&#34;);
+        except JSONDecodeError:
+            if e.response.status_code == 401:
+                errmsg = &#34;Please log in or sign up&#34;
+            else:
+                errmsg = &#34;(no detail message supplied)&#34;
+        print(&#34;failed with error {e.response.status_code}: {errmsg}&#34;.format(**locals()));            </code></pre>
+</details>
+</dd>
+<dt id="vastai.vast.label__instance"><code class="name flex">
+<span>def <span class="ident">label__instance</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@parser.command(
+    argument(&#34;id&#34;,            help=&#34;id of instance to label&#34;, type=int),
+    argument(&#34;label&#34;,         help=&#34;label to set&#34;, type=str),
+    usage = &#34;vast label instance &lt;id&gt; &lt;label&gt;&#34;,
+)
+def label__instance(args):
+    url = apiurl(args, &#34;/instances/{id}/&#34;.format(id=args.id))
+    r = requests.put(url, json={
+        &#34;label&#34;: args.label
+    })
+    r.raise_for_status()
+
+    rj = r.json();
+    if rj[&#34;success&#34;]:
+        print(&#34;label for {args.id} set to {args.label}.&#34;.format(**(locals())) );
+    else :
+        print(rj[&#34;msg&#34;]);</code></pre>
+</details>
+</dd>
+<dt id="vastai.vast.display_table"><code class="name flex">
+<span>def <span class="ident">display_table</span></span>(<span>rows, fields)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def display_table(rows, fields):
+    header = [name for _, name, _, _, _ in fields]
+    out_rows = [header]
+    lengths = [len(x) for x in header]
+    for instance in rows:
+        row = []
+        out_rows.append(row)
+        for key, name, fmt, conv, _ in fields:
+            conv = conv or (lambda x: x)
+            val = instance.get(key, None)
+            if val is None:
+                s = &#34;-&#34;
+            else:
+                val = conv(val)
+                s = fmt.format(val)
+            idx = len(row)
+            lengths[idx] = max(len(s), lengths[idx])
+            row.append(s)
+    for row in out_rows:
+        out = []
+        for l, s, f in zip(lengths, row, fields):
+            _, _, _, _, ljust = f
+            if ljust:
+                s = s.ljust(l)
+            else:
+                s = s.rjust(l)
+            out.append(s)
+        print(&#34;  &#34;.join(out))</code></pre>
+</details>
+</dd>
+<dt id="vastai.vast.create__account"><code class="name flex">
+<span>def <span class="ident">create__account</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@parser.command(
+    argument(&#34;email&#34;,    help=&#34;Email&#34;),
+    argument(&#34;password&#34;,    help=&#34;Password&#34;),
+    #argument(&#34;--ssh-key&#34;,     help=&#34;The SSH Pubkey you&#39;d like to use to connect to containers&#34;),
+    usage = &#34;vast create account [--api-key API_KEY] [--ssh-key SSH_KEY] USERNAME PASSWORD&#34;,
+)
+def create__account(args):
+    if args.username is None:
+        args.username = input(&#34;Email: &#34;);
+    if args.password is None:
+        args.password = getpass.getpass(&#34;Password: &#34;);
+    # TODO: do this?
+    #if args.ssh_key is None:
+    #    args.ssh_key = input(&#34;Ssh key: &#34;);
+
+    url = apiurl(args, &#34;/users/&#34;);
+    #msg = &#39;ssh_key&#39;: _load_sshkey(args.ssh_key)
+    
+    r = requests.post(url,
+            json={&#39;username&#39;:args.username, &#39;password&#39;:  args.password, } );
+    r.raise_for_status()
+    resp = r.json()
+    print(&#34;You are user {}! Your new api key: {}&#34;.format(resp[&#34;id&#34;], resp[&#34;api_key&#34;]))
+    args.api_key = resp[&#34;api_key&#34;]
+    set_api_key(args)</code></pre>
+</details>
+</dd>
+<dt id="vastai.vast.remove__defjob"><code class="name flex">
+<span>def <span class="ident">remove__defjob</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@parser.command(
+    argument(&#34;id&#34;,          help=&#34;id of machine to remove default instance from&#34;, type=int),
+)
+def remove__defjob(args):
+
+    req_url = apiurl(args, &#34;/machines/{machine_id}/defjob/&#34;.format(machine_id = args.id));
+    #print(req_url);
+    r = requests.delete(req_url);
+    
+    if (r.status_code == 200) :
+        #print(r.text);
+        rj = r.json();
+        if (rj[&#34;success&#34;]) :
+            print(&#34;default instance for machine {machine_id} removed.&#34;.format(machine_id = args.id));
+        else :
+            print(rj[&#34;msg&#34;]);
+    else :
+        print(r.text);
+        print(&#34;failed with error {r.status_code}&#34;.format(**locals()));</code></pre>
 </details>
 </dd>
 <dt id="vastai.vast.parse_query"><code class="name flex">
@@ -1222,8 +1690,8 @@ if __name__ == &#34;__main__&#34;:
     return res</code></pre>
 </details>
 </dd>
-<dt id="vastai.vast.display_table"><code class="name flex">
-<span>def <span class="ident">display_table</span></span>(<span>rows, fields)</span>
+<dt id="vastai.vast.unlist__machine"><code class="name flex">
+<span>def <span class="ident">unlist__machine</span></span>(<span>args)</span>
 </code></dt>
 <dd>
 <section class="desc"></section>
@@ -1231,34 +1699,57 @@ if __name__ == &#34;__main__&#34;:
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def display_table(rows, fields):
-    header = [name for _, name, _, _, _ in fields]
-    out_rows = [header]
-    lengths = [len(x) for x in header]
-    for instance in rows:
-        row = []
-        out_rows.append(row)
-        for key, name, fmt, conv, _ in fields:
-            conv = conv or (lambda x: x)
-            val = instance.get(key, None)
-            if val is None:
-                s = &#34;-&#34;
-            else:
-                val = conv(val)
-                s = fmt.format(val)
-            idx = len(row)
-            lengths[idx] = max(len(s), lengths[idx])
-            row.append(s)
-    for row in out_rows:
-        out = []
-        for l, s, f in zip(lengths, row, fields):
-            _, _, _, _, ljust = f
-            if ljust:
-                s = s.ljust(l)
-            else:
-                s = s.rjust(l)
-            out.append(s)
-        print(&#34;  &#34;.join(out))</code></pre>
+<pre><code class="python">@parser.command(
+    argument(&#34;id&#34;,          help=&#34;id of machine to list&#34;, type=int),
+    usage = &#34;vast unlist machine &lt;id&gt;&#34;,
+)
+def unlist__machine(args):
+    req_url = apiurl(args, &#34;/machines/{machine_id}/asks/&#34;.format(machine_id = args.id));
+    #req_url = args.url + &#34;/machines/{machine_id}/asks/&#34;.format(machine_id = args.id);
+    #print(req_url);
+    r = requests.delete(req_url);
+    
+    if (r.status_code == 200) :
+        #print(r.text);
+        rj = r.json();
+        if (rj[&#34;success&#34;]) :
+            print(&#34;all offers for machine {machine_id} removed, machine delisted.&#34;.format(machine_id = args.id));
+        else :
+            print(rj[&#34;msg&#34;]);
+    else :
+        print(r.text);
+        print(&#34;failed with error {r.status_code}&#34;.format(**locals()));</code></pre>
+</details>
+</dd>
+<dt id="vastai.vast.start__instance"><code class="name flex">
+<span>def <span class="ident">start__instance</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@parser.command(
+    argument(&#34;id&#34;,            help=&#34;id of instance to start/restart&#34;, type=int),
+    usage = &#34;vast start instance &lt;id&gt; [--raw]&#34;,
+)
+def start__instance(args):
+    url = apiurl(args, &#34;/instances/{id}/&#34;.format(id=args.id))
+    r = requests.put(url, json={
+        &#34;state&#34;: &#34;running&#34;
+    })
+    r.raise_for_status()
+
+    if (r.status_code == 200) :
+        rj = r.json();
+        if (rj[&#34;success&#34;]) :
+            print(&#34;starting instance {args.id}.&#34;.format(**(locals())) );
+        else :
+            print(rj[&#34;msg&#34;]);
+    else :
+        print(r.text);
+        print(&#34;failed with error {r.status_code}&#34;.format(**locals()));</code></pre>
 </details>
 </dd>
 <dt id="vastai.vast.search__offers"><code class="name flex">
@@ -1391,8 +1882,8 @@ def search__offers(args):
         display_table(rows, displayable_fields)</code></pre>
 </details>
 </dd>
-<dt id="vastai.vast.show__instances"><code class="name flex">
-<span>def <span class="ident">show__instances</span></span>(<span>args)</span>
+<dt id="vastai.vast.set__api_key"><code class="name flex">
+<span>def <span class="ident">set__api_key</span></span>(<span>args)</span>
 </code></dt>
 <dd>
 <section class="desc"></section>
@@ -1401,318 +1892,13 @@ def search__offers(args):
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@parser.command(
-    usage=&#34;vast show instances [--api-key API_KEY] [--raw]&#34;,
+    argument(&#34;api-key&#34;,    help=&#34;Api key to set as currently logged in user&#34;),
+    usage = &#34;vast set api-key APIKEY&#34;,
 )
-def show__instances(args):
-    req_url = apiurl(args, &#34;/instances&#34;, {&#34;owner&#34;: &#34;me&#34;});
-    r = requests.get(req_url);
-    r.raise_for_status()
-    rows = r.json()[&#34;instances&#34;]
-    if args.raw:
-        print(json.dumps(rows, indent=1, sort_keys=True))
-    else:
-        display_table(rows, instance_fields)</code></pre>
-</details>
-</dd>
-<dt id="vastai.vast.show__machines"><code class="name flex">
-<span>def <span class="ident">show__machines</span></span>(<span>args)</span>
-</code></dt>
-<dd>
-<section class="desc"></section>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@parser.command(
-    argument(&#34;-q&#34;, &#34;--quiet&#34;, action=&#34;store_true&#34;, help=&#34;only display numeric ids&#34;),
-    usage = &#34;vast show machines [OPTIONS]&#34;,
-)
-def show__machines(args):
-    req_url = apiurl(args, &#34;/machines&#34;, {&#34;owner&#34;: &#34;me&#34;});
-    r = requests.get(req_url);
-    r.raise_for_status()
-    rows = r.json()[&#34;machines&#34;]
-    if args.raw:
-        print(json.dumps(rows, indent=1, sort_keys=True))
-    else:
-        for machine in rows:
-            if args.quiet:
-                print(&#34;{id}&#34;.format(id=machine[&#34;id&#34;]))
-            else:
-                print(&#34;{N} machines: &#34;.format(N=len(rows)) );
-                print(&#34;{id}: {json}&#34;.format(id=machine[&#34;id&#34;], json=json.dumps(machine, indent=4, sort_keys=True)))</code></pre>
-</details>
-</dd>
-<dt id="vastai.vast.list__machine"><code class="name flex">
-<span>def <span class="ident">list__machine</span></span>(<span>args)</span>
-</code></dt>
-<dd>
-<section class="desc"></section>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@parser.command(
-    argument(&#34;id&#34;,                  help=&#34;id of machine to list&#34;, type=int),
-    argument(&#34;-g&#34;, &#34;--price_gpu&#34;,   help=&#34;per gpu rental price in $/hour  (price for active instances)&#34;, type=float),
-    argument(&#34;-s&#34;, &#34;--price_disk&#34;,  help=&#34;storage price in $/GB/month (price for inactive instances), default: $0.15/GB/month&#34;, type=float),
-    argument(&#34;-u&#34;, &#34;--price_inetu&#34;, help=&#34;price for internet upload bandwidth in $/GB&#34;, type=float),
-    argument(&#34;-d&#34;, &#34;--price_inetd&#34;, help=&#34;price for internet download bandwidth in $/GB&#34;, type=float),
-    usage = &#34;vast list machine id [--price_gpu PRICE_GPU] [--price_inetu PRICE_INETU] [--price_inetd PRICE_INETD] [--api-key API_KEY]&#34;,
-)
-def list__machine(args):
-    #req_url = args.url + &#34;/machines/create_asks/?user_id=&#34; + str(args.user);
-    req_url = apiurl(args, &#34;/machines/create_asks/&#34;);
-
-    #print(&#34;PUT &#34; + req_url);
-    r = requests.put(req_url, json = {&#39;machine&#39;:args.id, &#39;price_gpu&#39;:args.price_gpu, &#39;price_disk&#39;:args.price_disk, &#39;price_inetu&#39;:args.price_inetu, &#39;price_inetd&#39;:args.price_inetd } );
-    
-    if (r.status_code == 200) :
-        #print(r.text);
-        rj = r.json();
-        if (rj[&#34;success&#34;]) :
-            price_gpu_   = str(args.price_gpu) if args.price_gpu is not None else &#34;def&#34;;
-            price_inetu_ = str(args.price_inetu);
-            price_inetd_ = str(args.price_inetd);
-            print(&#34;offers created for machine {args.id},  @ ${price_gpu_}/gpu/day, ${price_inetu_}/GB up, ${price_inetd_}/GB down&#34;.format(**locals()));
-        else :
-            print(rj[&#34;msg&#34;]);
-    else :
-        print(r.text);
-        print(&#34;failed with error {r.status_code}&#34;.format(**locals()));</code></pre>
-</details>
-</dd>
-<dt id="vastai.vast.unlist__machine"><code class="name flex">
-<span>def <span class="ident">unlist__machine</span></span>(<span>args)</span>
-</code></dt>
-<dd>
-<section class="desc"></section>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@parser.command(
-    argument(&#34;id&#34;,          help=&#34;id of machine to list&#34;, type=int),
-    usage = &#34;vast unlist machine &lt;id&gt;&#34;,
-)
-def unlist__machine(args):
-    req_url = apiurl(args, &#34;/machines/{machine_id}/asks/&#34;.format(machine_id = args.id));
-    #req_url = args.url + &#34;/machines/{machine_id}/asks/&#34;.format(machine_id = args.id);
-    #print(req_url);
-    r = requests.delete(req_url);
-    
-    if (r.status_code == 200) :
-        #print(r.text);
-        rj = r.json();
-        if (rj[&#34;success&#34;]) :
-            print(&#34;all offers for machine {machine_id} removed, machine delisted.&#34;.format(machine_id = args.id));
-        else :
-            print(rj[&#34;msg&#34;]);
-    else :
-        print(r.text);
-        print(&#34;failed with error {r.status_code}&#34;.format(**locals()));</code></pre>
-</details>
-</dd>
-<dt id="vastai.vast.remove__defjob"><code class="name flex">
-<span>def <span class="ident">remove__defjob</span></span>(<span>args)</span>
-</code></dt>
-<dd>
-<section class="desc"></section>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@parser.command(
-    argument(&#34;id&#34;,          help=&#34;id of machine to remove default instance from&#34;, type=int),
-)
-def remove__defjob(args):
-
-    req_url = apiurl(args, &#34;/machines/{machine_id}/defjob/&#34;.format(machine_id = args.id));
-    #print(req_url);
-    r = requests.delete(req_url);
-    
-    if (r.status_code == 200) :
-        #print(r.text);
-        rj = r.json();
-        if (rj[&#34;success&#34;]) :
-            print(&#34;default instance for machine {machine_id} removed.&#34;.format(machine_id = args.id));
-        else :
-            print(rj[&#34;msg&#34;]);
-    else :
-        print(r.text);
-        print(&#34;failed with error {r.status_code}&#34;.format(**locals()));</code></pre>
-</details>
-</dd>
-<dt id="vastai.vast.set_ask"><code class="name flex">
-<span>def <span class="ident">set_ask</span></span>(<span>args)</span>
-</code></dt>
-<dd>
-<section class="desc"></section>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def set_ask(args):
-    print(&#34;set asks!\n&#34;);</code></pre>
-</details>
-</dd>
-<dt id="vastai.vast.start__instance"><code class="name flex">
-<span>def <span class="ident">start__instance</span></span>(<span>args)</span>
-</code></dt>
-<dd>
-<section class="desc"></section>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@parser.command(
-    argument(&#34;id&#34;,            help=&#34;id of instance to start/restart&#34;, type=int),
-    usage = &#34;vast start instance &lt;id&gt; [--raw]&#34;,
-)
-def start__instance(args):
-    url = apiurl(args, &#34;/instances/{id}/&#34;.format(id=args.id))
-    r = requests.put(url, json={
-        &#34;state&#34;: &#34;running&#34;
-    })
-    r.raise_for_status()
-
-    if (r.status_code == 200) :
-        rj = r.json();
-        if (rj[&#34;success&#34;]) :
-            print(&#34;starting instance {args.id}.&#34;.format(**(locals())) );
-        else :
-            print(rj[&#34;msg&#34;]);
-    else :
-        print(r.text);
-        print(&#34;failed with error {r.status_code}&#34;.format(**locals()));</code></pre>
-</details>
-</dd>
-<dt id="vastai.vast.stop__instance"><code class="name flex">
-<span>def <span class="ident">stop__instance</span></span>(<span>args)</span>
-</code></dt>
-<dd>
-<section class="desc"></section>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@parser.command(
-    argument(&#34;id&#34;,            help=&#34;id of instance to stop&#34;, type=int),
-    usage = &#34;vast stop instance [--raw] &lt;id&gt;&#34;,
-)
-def stop__instance(args):
-    url = apiurl(args, &#34;/instances/{id}/&#34;.format(id=args.id))
-    r = requests.put(url, json={
-        &#34;state&#34;: &#34;stopped&#34;
-    })
-    r.raise_for_status()
-
-    if (r.status_code == 200) :
-        rj = r.json();
-        if (rj[&#34;success&#34;]) :
-            print(&#34;stopping instance {args.id}.&#34;.format(**(locals())) );
-        else :
-            print(rj[&#34;msg&#34;]);
-    else :
-        print(r.text);
-        print(&#34;failed with error {r.status_code}&#34;.format(**locals()));</code></pre>
-</details>
-</dd>
-<dt id="vastai.vast.label__instance"><code class="name flex">
-<span>def <span class="ident">label__instance</span></span>(<span>args)</span>
-</code></dt>
-<dd>
-<section class="desc"></section>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@parser.command(
-    argument(&#34;id&#34;,            help=&#34;id of instance to label&#34;, type=int),
-    argument(&#34;label&#34;,         help=&#34;label to set&#34;, type=str),
-    usage = &#34;vast label instance &lt;id&gt; &lt;label&gt;&#34;,
-)
-def label__instance(args):
-    url = apiurl(args, &#34;/instances/{id}/&#34;.format(id=args.id))
-    r = requests.put(url, json={
-        &#34;label&#34;: args.label
-    })
-    r.raise_for_status()
-
-    rj = r.json();
-    if rj[&#34;success&#34;]:
-        print(&#34;label for {args.id} set to {args.label}.&#34;.format(**(locals())) );
-    else :
-        print(rj[&#34;msg&#34;]);</code></pre>
-</details>
-</dd>
-<dt id="vastai.vast.destroy__instance"><code class="name flex">
-<span>def <span class="ident">destroy__instance</span></span>(<span>args)</span>
-</code></dt>
-<dd>
-<section class="desc"></section>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@parser.command(
-    argument(&#34;id&#34;,            help=&#34;id of instance to delete&#34;, type=int),
-    usage=&#34;vast destroy instance id [-h] [--api-key API_KEY] [--raw]&#34;
-)
-def destroy__instance(args):
-    url = apiurl(args, &#34;/instances/{id}/&#34;.format(id=args.id))
-    r = requests.delete(url, json={})
-    r.raise_for_status()
-    
-
-    if (r.status_code == 200) :
-        rj = r.json();
-        if (rj[&#34;success&#34;]) :
-            print(&#34;destroying instance {args.id}.&#34;.format(**(locals())) );
-        else :
-            print(rj[&#34;msg&#34;]);
-    else :
-        print(r.text);
-        print(&#34;failed with error {r.status_code}&#34;.format(**locals()));</code></pre>
-</details>
-</dd>
-<dt id="vastai.vast.set__defjob"><code class="name flex">
-<span>def <span class="ident">set__defjob</span></span>(<span>args)</span>
-</code></dt>
-<dd>
-<section class="desc"></section>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@parser.command(
-    argument(&#34;id&#34;,            help=&#34;id of machine to launch default instance on&#34;, type=int),
-    argument(&#34;--price_gpu&#34;,   help=&#34;per gpu rental price in $/hour&#34;, type=float),
-    argument(&#34;--price_inetu&#34;, help=&#34;price for internet upload bandwidth in $/GB&#34;, type=float),
-    argument(&#34;--price_inetd&#34;, help=&#34;price for internet download bandwidth in $/GB&#34;, type=float),
-    argument(&#34;--image&#34;,       help=&#34;docker container image to launch&#34;, type=str),
-    argument(&#34;--args&#34;,        nargs=argparse.REMAINDER, help=&#34;list of arguments passed to container launch&#34;),
-    usage=&#34;vast set defjob id [--api-key API_KEY] [--price_gpu PRICE_GPU] [--price_inetu PRICE_INETU] [--price_inetd PRICE_INETD] [--image IMAGE] [--args ...]&#34;
-)
-def set__defjob(args):
-    #req_url = args.url + &#34;/machines/create_asks/?user_id=&#34; + str(args.user);
-    req_url    = apiurl(args, &#34;/machines/create_bids/&#34;);
-
-    #print(&#34;PUT &#34; + req_url);
-    r = requests.put(req_url, json = 
-        {&#39;machine&#39;:args.id, &#39;price_gpu&#39;:args.price_gpu, &#39;price_inetu&#39;:args.price_inetu, &#39;price_inetd&#39;:args.price_inetd,
-         &#39;image&#39;:args.image, &#39;args&#39;:args.args } );
-    
-    if (r.status_code == 200) :
-        #print(r.text);
-        rj = r.json();
-        if (rj[&#34;success&#34;]) :
-            print(&#34;bids created for machine {args.id},  @ ${args.price_gpu}/gpu/day, ${args.price_inetu}/GB up, ${args.price_inetd}/GB down&#34;.format(**locals()));
-        else :
-            print(rj[&#34;msg&#34;]);
-    else :
-        print(r.text);
-        print(&#34;failed with error {r.status_code}&#34;.format(**locals()));</code></pre>
+def set__api_key(args):
+    with open(api_key_file, &#34;w&#34;) as writer:
+        writer.write(args.api_key)
+    print(&#34;Your api key has been saved in {}&#34;.format(api_key_file_base))</code></pre>
 </details>
 </dd>
 <dt id="vastai.vast.create__instance"><code class="name flex">
@@ -1811,8 +1997,8 @@ def change__bid(args):
     print(&#34;Per gpu bid price changed&#34;.format(r.json()))</code></pre>
 </details>
 </dd>
-<dt id="vastai.vast.set__min_bid"><code class="name flex">
-<span>def <span class="ident">set__min_bid</span></span>(<span>args)</span>
+<dt id="vastai.vast.list__machine"><code class="name flex">
+<span>def <span class="ident">list__machine</span></span>(<span>args)</span>
 </code></dt>
 <dd>
 <section class="desc"></section>
@@ -1821,219 +2007,33 @@ def change__bid(args):
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@parser.command(
-    argument(&#34;id&#34;,            help=&#34;id of machine to set min bid price for&#34;, type=int),
-    argument(&#34;--price&#34;,       help=&#34;per gpu min bid price in $/hour&#34;, type=float),
-    usage = &#34;vast set min_bid id [--price PRICE]&#34;,
-    epilog = deindent(&#34;&#34;&#34;
-        Change the current min bid price of machine id to PRICE.
-    &#34;&#34;&#34;),
+    argument(&#34;id&#34;,                  help=&#34;id of machine to list&#34;, type=int),
+    argument(&#34;-g&#34;, &#34;--price_gpu&#34;,   help=&#34;per gpu rental price in $/hour  (price for active instances)&#34;, type=float),
+    argument(&#34;-s&#34;, &#34;--price_disk&#34;,  help=&#34;storage price in $/GB/month (price for inactive instances), default: $0.15/GB/month&#34;, type=float),
+    argument(&#34;-u&#34;, &#34;--price_inetu&#34;, help=&#34;price for internet upload bandwidth in $/GB&#34;, type=float),
+    argument(&#34;-d&#34;, &#34;--price_inetd&#34;, help=&#34;price for internet download bandwidth in $/GB&#34;, type=float),
+    usage = &#34;vast list machine id [--price_gpu PRICE_GPU] [--price_inetu PRICE_INETU] [--price_inetd PRICE_INETD] [--api-key API_KEY]&#34;,
 )
-def set__min_bid(args):
-    url = apiurl(args, &#34;/machines/{id}/minbid/&#34;.format(id=args.id))
-    r = requests.put(url, json={
-        &#34;client_id&#34;: &#34;me&#34;,
-        &#34;price&#34; : args.price,
-    })
-    r.raise_for_status()
-    print(&#34;Per gpu min bid price changed&#34;.format(r.json()))</code></pre>
-</details>
-</dd>
-<dt id="vastai.vast.set__api_key"><code class="name flex">
-<span>def <span class="ident">set__api_key</span></span>(<span>args)</span>
-</code></dt>
-<dd>
-<section class="desc"></section>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@parser.command(
-    argument(&#34;api-key&#34;,    help=&#34;Api key to set as currently logged in user&#34;),
-    usage = &#34;vast set api-key APIKEY&#34;,
-)
-def set__api_key(args):
-    with open(api_key_file, &#34;w&#34;) as writer:
-        writer.write(args.api_key)
-    print(&#34;Your api key has been saved in {}&#34;.format(api_key_file_base))</code></pre>
-</details>
-</dd>
-<dt id="vastai.vast.create__account"><code class="name flex">
-<span>def <span class="ident">create__account</span></span>(<span>args)</span>
-</code></dt>
-<dd>
-<section class="desc"></section>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@parser.command(
-    argument(&#34;email&#34;,    help=&#34;Email&#34;),
-    argument(&#34;password&#34;,    help=&#34;Password&#34;),
-    #argument(&#34;--ssh-key&#34;,     help=&#34;The SSH Pubkey you&#39;d like to use to connect to containers&#34;),
-    usage = &#34;vast create account [--api-key API_KEY] [--ssh-key SSH_KEY] USERNAME PASSWORD&#34;,
-)
-def create__account(args):
-    if args.username is None:
-        args.username = input(&#34;Email: &#34;);
-    if args.password is None:
-        args.password = getpass.getpass(&#34;Password: &#34;);
-    # TODO: do this?
-    #if args.ssh_key is None:
-    #    args.ssh_key = input(&#34;Ssh key: &#34;);
+def list__machine(args):
+    #req_url = args.url + &#34;/machines/create_asks/?user_id=&#34; + str(args.user);
+    req_url = apiurl(args, &#34;/machines/create_asks/&#34;);
 
-    url = apiurl(args, &#34;/users/&#34;);
-    #msg = &#39;ssh_key&#39;: _load_sshkey(args.ssh_key)
+    #print(&#34;PUT &#34; + req_url);
+    r = requests.put(req_url, json = {&#39;machine&#39;:args.id, &#39;price_gpu&#39;:args.price_gpu, &#39;price_disk&#39;:args.price_disk, &#39;price_inetu&#39;:args.price_inetu, &#39;price_inetd&#39;:args.price_inetd } );
     
-    r = requests.post(url,
-            json={&#39;username&#39;:args.username, &#39;password&#39;:  args.password, } );
-    r.raise_for_status()
-    resp = r.json()
-    print(&#34;You are user {}! Your new api key: {}&#34;.format(resp[&#34;id&#34;], resp[&#34;api_key&#34;]))
-    args.api_key = resp[&#34;api_key&#34;]
-    set_api_key(args)</code></pre>
-</details>
-</dd>
-<dt id="vastai.vast.login"><code class="name flex">
-<span>def <span class="ident">login</span></span>(<span>args)</span>
-</code></dt>
-<dd>
-<section class="desc"></section>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@parser.command(
-    argument(&#34;username&#34;,    help=&#34;Username or Email&#34;, nargs=&#34;?&#34;, default=None),
-    argument(&#34;password&#34;,    help=&#34;Password&#34;, nargs=&#34;?&#34;, default=None),
-    argument(&#34;--ssh-key&#34;,     help=&#34;The SSH Pubkey you&#39;d like to use to connect to containers&#34;),
-    usage = &#34;vast login [--username USERNAME] [--password PASSWORD] [--api-key API_KEY] [--ssh-key SSH_KEY]&#34;,
-)
-def login(args):
-    if args.username is None:
-        args.username = input(&#34;Username or Email: &#34;);
-    if args.password is None:
-        try:
-            # weird try/except is because windows gives a typeerror on this line
-            args.password = getpass.getpass(&#34;Password: &#34;);
-        except TypeError:
-            try:
-                args.password = getpass.getpass(&#34;Password: &#34;.encode(&#34;utf-8&#34;))
-            except TypeError:
-                args.password = raw_input(&#34;Password: &#34;)
-
-    url = apiurl(args, &#34;/users/current/&#34;);
-    print(url)
-    
-    r = requests.put(url,
-            json={&#39;username&#39;: args.username, &#39;password&#39;: args.password} );
-    r.raise_for_status()
-    resp = r.json()
-    print(&#34;You are user {}! Your existing api key: {}&#34;.format(resp[&#34;id&#34;], resp[&#34;api_key&#34;]))
-    args.api_key = resp[&#34;api_key&#34;]
-    set__api_key(args)</code></pre>
-</details>
-</dd>
-<dt id="vastai.vast.main"><code class="name flex">
-<span>def <span class="ident">main</span></span>(<span>)</span>
-</code></dt>
-<dd>
-<section class="desc"></section>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def main():
-    parser.add_argument(&#34;--url&#34;, help=&#34;server REST api url&#34;, default=server_url_default)
-    parser.add_argument(&#34;--raw&#34;, action=&#34;store_true&#34;, help=&#34;output machine-readable json&#34;);
-    parser.add_argument(&#34;--api-key&#34;,     help=&#34;api key. defaults to using the one stored in {}&#34;.format(api_key_file_base), type=str, required=False, default=api_key_guard)
-
-    #func_dict = {
-    #    &#34;set defjob&#34;:               set_defjob,
-    #    &#34;remove defjob&#34;:            remove_defjob,
-    #    #&#34;accept ask&#34;:              accept_ask,
-    #    #&#34;exec bid&#34;:                create_bid,
-    #    #&#34;set ask&#34;:                 set_ask,
-    #    #&#34;list asks&#34;:               list_asks,
-    #    &#34;create account&#34;:           create_account,
-    #    &#34;login&#34;:                    login,
-    #    &#34;create instance&#34;:          create_instance,
-    #    &#34;change bid&#34;:               change_bid,
-    #    &#34;destroy instance&#34;:         destroy_instance,
-    #    &#34;start instance&#34;:           start_instance,
-    #    &#34;stop instance&#34;:            stop_instance,
-    #    &#34;label instance&#34;:           label_instance,
-    #    &#34;list machine&#34;:             list_machine,
-    #    &#34;unlist machine&#34;:           unlist_machine,
-    #    #&#34;search offers&#34;:         search_instances,
-    #    &#34;show instances&#34;:           show_instances,
-    #    &#34;show host-instances&#34;:      host_instances,
-    #    &#34;show machines&#34;:            show_machines,
-    #    &#34;set min-bid&#34;:              set_min_bid,
-    #    &#34;set api-key&#34;:              set_api_key_cmd,
-    #}
-
-
-    func_help = [
-        &#34;General:&#34;,
-        &#34;create account          Create a new account with a username and password&#34;,
-        &#34;login                   Login to an account and or switch accounts&#34;,
-        &#34;set api-key             Set account via api key&#34;,
-        &#34;&#34;,
-        &#34;Client:&#34;,
-        &#34;create instance         Accept an offer and launch a new container instance&#34;,
-        &#34;destroy instance        Stop and destroy an existing container instance, deleting local storage&#34;,
-        &#34;change bid              Set a new bid price for an interruptible instance&#34;,
-        &#34;label instance          Set label for existing instance&#34;,
-        &#34;start instance          Start/restart an existing stopped container instance&#34;,
-        &#34;stop instance           Stop and hibernate an existing container instance; local storage persists&#34;,
-        &#34;search offers           Search for available instances to rent that match specific criteria&#34;,
-        &#34;show instances          Show all your current rental instances&#34;,
-        &#34;&#34;,
-        &#34;Host:&#34;,
-        &#34;show machines           Show all your physical machines connected to vast.ai&#34;,
-        &#34;set defjob              Change/configure the default low-priority instance to run on a machine&#34;,
-        &#34;remove defjob           remove any default instance from a machine&#34;,
-        &#34;list machine            List a machine for rental: creates and registers one or more instance offers with pricing&#34;,
-        &#34;unlist machine          Unlist a machine: destroys and unregisters instance offers (but doesn&#39;t effect any active instances)&#34;,
-        &#34;set min-bid             Set minimum per gpu bid price&#34;,
-    ]
-    
-    #cmd0 = &#34;&#34;; cmd1 = &#34;&#34;;
-    #
-    #if len(sys.argv) &gt; 1:
-    #    if (sys.argv[1] == &#34;help&#34;):
-    #        sys.argv[1:2] = []
-    #        sys.argv.append(&#34;--help&#34;)
-    #if len(sys.argv) &gt; 1: cmd0 = sys.argv[1];
-
-    #command_type = cmd0;
-        
-    #if (cmd0 not in func_dict):
-    #    if len(sys.argv) &gt; 2: cmd1 = sys.argv[2];
-    #    command_type = cmd0 + &#39; &#39; + cmd1;
-    
-    #print(&#34;command: {}&#34;.format(command_type));
-
-    #parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter);
-
-    args = parser.parse_args()
-    if args.api_key is api_key_guard:
-        if os.path.exists(api_key_file):
-            with open(api_key_file, &#34;r&#34;) as reader:
-                args.api_key = reader.read().strip()
-        else:
-            args.api_key = None
-    try:
-        sys.exit(args.func(args) or 0)
-    except requests.exceptions.HTTPError as e :
-        try:
-            errmsg = e.response.json().get(&#34;msg&#34;);
-        except JSONDecodeError:
-            if e.response.status_code == 401:
-                errmsg = &#34;Please log in or sign up&#34;
-            else:
-                errmsg = &#34;(no detail message supplied)&#34;
-        print(&#34;failed with error {e.response.status_code}: {errmsg}&#34;.format(**locals()));            </code></pre>
+    if (r.status_code == 200) :
+        #print(r.text);
+        rj = r.json();
+        if (rj[&#34;success&#34;]) :
+            price_gpu_   = str(args.price_gpu) if args.price_gpu is not None else &#34;def&#34;;
+            price_inetu_ = str(args.price_inetu);
+            price_inetd_ = str(args.price_inetd);
+            print(&#34;offers created for machine {args.id},  @ ${price_gpu_}/gpu/day, ${price_inetu_}/GB up, ${price_inetd_}/GB down&#34;.format(**locals()));
+        else :
+            print(rj[&#34;msg&#34;]);
+    else :
+        print(r.text);
+        print(&#34;failed with error {r.status_code}&#34;.format(**locals()));</code></pre>
 </details>
 </dd>
 </dl>
@@ -2041,62 +2041,6 @@ def login(args):
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="vastai.vast.argument"><code class="flex name class">
-<span>class <span class="ident">argument</span></span>
-<span>(</span><span>*args, **kwargs)</span>
-</code></dt>
-<dd>
-<section class="desc"></section>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class argument(object):
-    def __init__(self, *args, **kwargs):
-        self.args = args
-        self.kwargs = kwargs</code></pre>
-</details>
-</dd>
-<dt id="vastai.vast.hidden_aliases"><code class="flex name class">
-<span>class <span class="ident">hidden_aliases</span></span>
-<span>(</span><span>l)</span>
-</code></dt>
-<dd>
-<section class="desc"></section>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class hidden_aliases(object):
-    # just a bit of a hack
-    def __init__(self, l):
-        self.l = l
-    def __iter__(self):
-        return iter(self.l)
-    def __bool__(self):
-        return False
-    def __nonzero__(self):
-        return False
-    def append(self,x):
-        self.l.append(x)</code></pre>
-</details>
-<h3>Methods</h3>
-<dl>
-<dt id="vastai.vast.hidden_aliases.append"><code class="name flex">
-<span>def <span class="ident">append</span></span>(<span>self, x)</span>
-</code></dt>
-<dd>
-<section class="desc"></section>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def append(self,x):
-    self.l.append(x)</code></pre>
-</details>
-</dd>
-</dl>
-</dd>
 <dt id="vastai.vast.apwrap"><code class="flex name class">
 <span>class <span class="ident">apwrap</span></span>
 <span>(</span><span>*args, **kwargs)</span>
@@ -2196,20 +2140,6 @@ def login(args):
 </details>
 <h3>Methods</h3>
 <dl>
-<dt id="vastai.vast.apwrap.fail_with_help"><code class="name flex">
-<span>def <span class="ident">fail_with_help</span></span>(<span>self, *a, **kw)</span>
-</code></dt>
-<dd>
-<section class="desc"></section>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def fail_with_help(self, *a, **kw):
-    self.parser.print_help(sys.stderr)
-    raise SystemExit</code></pre>
-</details>
-</dd>
 <dt id="vastai.vast.apwrap.add_argument"><code class="name flex">
 <span>def <span class="ident">add_argument</span></span>(<span>self, *a, **kw)</span>
 </code></dt>
@@ -2228,43 +2158,6 @@ def login(args):
                 # duplicate - or maybe other things, hopefully not
                 pass
     return self.parser.add_argument(*a, **kw)</code></pre>
-</details>
-</dd>
-<dt id="vastai.vast.apwrap.subparsers"><code class="name flex">
-<span>def <span class="ident">subparsers</span></span>(<span>self, *a, **kw)</span>
-</code></dt>
-<dd>
-<section class="desc"></section>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def subparsers(self, *a, **kw):
-    if self.subparsers_ is None:
-        kw[&#34;metavar&#34;] = &#34;command&#34;
-        kw[&#34;help&#34;] = &#34;command to run. one of:&#34;
-        self.subparsers_ = self.parser.add_subparsers(*a, **kw)
-    return self.subparsers_</code></pre>
-</details>
-</dd>
-<dt id="vastai.vast.apwrap.get_name"><code class="name flex">
-<span>def <span class="ident">get_name</span></span>(<span>self, verb, obj)</span>
-</code></dt>
-<dd>
-<section class="desc"></section>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def get_name(self, verb, obj):
-    if obj:
-        self.verbs.add(verb)
-        self.objs.add(obj)
-        name = verb + &#39; &#39; + obj
-    else:
-        self.objs.add(verb)
-        name = verb
-    return name</code></pre>
 </details>
 </dd>
 <dt id="vastai.vast.apwrap.command"><code class="name flex">
@@ -2307,6 +2200,57 @@ def login(args):
     return inner</code></pre>
 </details>
 </dd>
+<dt id="vastai.vast.apwrap.fail_with_help"><code class="name flex">
+<span>def <span class="ident">fail_with_help</span></span>(<span>self, *a, **kw)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def fail_with_help(self, *a, **kw):
+    self.parser.print_help(sys.stderr)
+    raise SystemExit</code></pre>
+</details>
+</dd>
+<dt id="vastai.vast.apwrap.subparsers"><code class="name flex">
+<span>def <span class="ident">subparsers</span></span>(<span>self, *a, **kw)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def subparsers(self, *a, **kw):
+    if self.subparsers_ is None:
+        kw[&#34;metavar&#34;] = &#34;command&#34;
+        kw[&#34;help&#34;] = &#34;command to run. one of:&#34;
+        self.subparsers_ = self.parser.add_subparsers(*a, **kw)
+    return self.subparsers_</code></pre>
+</details>
+</dd>
+<dt id="vastai.vast.apwrap.get_name"><code class="name flex">
+<span>def <span class="ident">get_name</span></span>(<span>self, verb, obj)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_name(self, verb, obj):
+    if obj:
+        self.verbs.add(verb)
+        self.objs.add(obj)
+        name = verb + &#39; &#39; + obj
+    else:
+        self.objs.add(verb)
+        name = verb
+    return name</code></pre>
+</details>
+</dd>
 <dt id="vastai.vast.apwrap.parse_args"><code class="name flex">
 <span>def <span class="ident">parse_args</span></span>(<span>self, argv=None, *a, **kw)</span>
 </code></dt>
@@ -2333,6 +2277,62 @@ def login(args):
 </dd>
 </dl>
 </dd>
+<dt id="vastai.vast.hidden_aliases"><code class="flex name class">
+<span>class <span class="ident">hidden_aliases</span></span>
+<span>(</span><span>l)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class hidden_aliases(object):
+    # just a bit of a hack
+    def __init__(self, l):
+        self.l = l
+    def __iter__(self):
+        return iter(self.l)
+    def __bool__(self):
+        return False
+    def __nonzero__(self):
+        return False
+    def append(self,x):
+        self.l.append(x)</code></pre>
+</details>
+<h3>Methods</h3>
+<dl>
+<dt id="vastai.vast.hidden_aliases.append"><code class="name flex">
+<span>def <span class="ident">append</span></span>(<span>self, x)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def append(self,x):
+    self.l.append(x)</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="vastai.vast.argument"><code class="flex name class">
+<span>class <span class="ident">argument</span></span>
+<span>(</span><span>*args, **kwargs)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class argument(object):
+    def __init__(self, *args, **kwargs):
+        self.args = args
+        self.kwargs = kwargs</code></pre>
+</details>
+</dd>
 </dl>
 </section>
 </article>
@@ -2349,35 +2349,43 @@ def login(args):
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="two-column">
-<li><code><a title="vastai.vast.apiurl" href="#vastai.vast.apiurl">apiurl</a></code></li>
-<li><code><a title="vastai.vast.deindent" href="#vastai.vast.deindent">deindent</a></code></li>
-<li><code><a title="vastai.vast.parse_query" href="#vastai.vast.parse_query">parse_query</a></code></li>
-<li><code><a title="vastai.vast.display_table" href="#vastai.vast.display_table">display_table</a></code></li>
-<li><code><a title="vastai.vast.search__offers" href="#vastai.vast.search__offers">search__offers</a></code></li>
-<li><code><a title="vastai.vast.show__instances" href="#vastai.vast.show__instances">show__instances</a></code></li>
-<li><code><a title="vastai.vast.show__machines" href="#vastai.vast.show__machines">show__machines</a></code></li>
-<li><code><a title="vastai.vast.list__machine" href="#vastai.vast.list__machine">list__machine</a></code></li>
-<li><code><a title="vastai.vast.unlist__machine" href="#vastai.vast.unlist__machine">unlist__machine</a></code></li>
-<li><code><a title="vastai.vast.remove__defjob" href="#vastai.vast.remove__defjob">remove__defjob</a></code></li>
-<li><code><a title="vastai.vast.set_ask" href="#vastai.vast.set_ask">set_ask</a></code></li>
-<li><code><a title="vastai.vast.start__instance" href="#vastai.vast.start__instance">start__instance</a></code></li>
 <li><code><a title="vastai.vast.stop__instance" href="#vastai.vast.stop__instance">stop__instance</a></code></li>
-<li><code><a title="vastai.vast.label__instance" href="#vastai.vast.label__instance">label__instance</a></code></li>
+<li><code><a title="vastai.vast.set_ask" href="#vastai.vast.set_ask">set_ask</a></code></li>
+<li><code><a title="vastai.vast.set__min_bid" href="#vastai.vast.set__min_bid">set__min_bid</a></code></li>
+<li><code><a title="vastai.vast.deindent" href="#vastai.vast.deindent">deindent</a></code></li>
 <li><code><a title="vastai.vast.destroy__instance" href="#vastai.vast.destroy__instance">destroy__instance</a></code></li>
+<li><code><a title="vastai.vast.show__instances" href="#vastai.vast.show__instances">show__instances</a></code></li>
 <li><code><a title="vastai.vast.set__defjob" href="#vastai.vast.set__defjob">set__defjob</a></code></li>
+<li><code><a title="vastai.vast.login" href="#vastai.vast.login">login</a></code></li>
+<li><code><a title="vastai.vast.apiurl" href="#vastai.vast.apiurl">apiurl</a></code></li>
+<li><code><a title="vastai.vast.show__machines" href="#vastai.vast.show__machines">show__machines</a></code></li>
+<li><code><a title="vastai.vast.main" href="#vastai.vast.main">main</a></code></li>
+<li><code><a title="vastai.vast.label__instance" href="#vastai.vast.label__instance">label__instance</a></code></li>
+<li><code><a title="vastai.vast.display_table" href="#vastai.vast.display_table">display_table</a></code></li>
+<li><code><a title="vastai.vast.create__account" href="#vastai.vast.create__account">create__account</a></code></li>
+<li><code><a title="vastai.vast.remove__defjob" href="#vastai.vast.remove__defjob">remove__defjob</a></code></li>
+<li><code><a title="vastai.vast.parse_query" href="#vastai.vast.parse_query">parse_query</a></code></li>
+<li><code><a title="vastai.vast.unlist__machine" href="#vastai.vast.unlist__machine">unlist__machine</a></code></li>
+<li><code><a title="vastai.vast.start__instance" href="#vastai.vast.start__instance">start__instance</a></code></li>
+<li><code><a title="vastai.vast.search__offers" href="#vastai.vast.search__offers">search__offers</a></code></li>
+<li><code><a title="vastai.vast.set__api_key" href="#vastai.vast.set__api_key">set__api_key</a></code></li>
 <li><code><a title="vastai.vast.create__instance" href="#vastai.vast.create__instance">create__instance</a></code></li>
 <li><code><a title="vastai.vast.change__bid" href="#vastai.vast.change__bid">change__bid</a></code></li>
-<li><code><a title="vastai.vast.set__min_bid" href="#vastai.vast.set__min_bid">set__min_bid</a></code></li>
-<li><code><a title="vastai.vast.set__api_key" href="#vastai.vast.set__api_key">set__api_key</a></code></li>
-<li><code><a title="vastai.vast.create__account" href="#vastai.vast.create__account">create__account</a></code></li>
-<li><code><a title="vastai.vast.login" href="#vastai.vast.login">login</a></code></li>
-<li><code><a title="vastai.vast.main" href="#vastai.vast.main">main</a></code></li>
+<li><code><a title="vastai.vast.list__machine" href="#vastai.vast.list__machine">list__machine</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="vastai.vast.argument" href="#vastai.vast.argument">argument</a></code></h4>
+<h4><code><a title="vastai.vast.apwrap" href="#vastai.vast.apwrap">apwrap</a></code></h4>
+<ul class="two-column">
+<li><code><a title="vastai.vast.apwrap.add_argument" href="#vastai.vast.apwrap.add_argument">add_argument</a></code></li>
+<li><code><a title="vastai.vast.apwrap.command" href="#vastai.vast.apwrap.command">command</a></code></li>
+<li><code><a title="vastai.vast.apwrap.fail_with_help" href="#vastai.vast.apwrap.fail_with_help">fail_with_help</a></code></li>
+<li><code><a title="vastai.vast.apwrap.subparsers" href="#vastai.vast.apwrap.subparsers">subparsers</a></code></li>
+<li><code><a title="vastai.vast.apwrap.get_name" href="#vastai.vast.apwrap.get_name">get_name</a></code></li>
+<li><code><a title="vastai.vast.apwrap.parse_args" href="#vastai.vast.apwrap.parse_args">parse_args</a></code></li>
+</ul>
 </li>
 <li>
 <h4><code><a title="vastai.vast.hidden_aliases" href="#vastai.vast.hidden_aliases">hidden_aliases</a></code></h4>
@@ -2386,15 +2394,7 @@ def login(args):
 </ul>
 </li>
 <li>
-<h4><code><a title="vastai.vast.apwrap" href="#vastai.vast.apwrap">apwrap</a></code></h4>
-<ul class="two-column">
-<li><code><a title="vastai.vast.apwrap.fail_with_help" href="#vastai.vast.apwrap.fail_with_help">fail_with_help</a></code></li>
-<li><code><a title="vastai.vast.apwrap.add_argument" href="#vastai.vast.apwrap.add_argument">add_argument</a></code></li>
-<li><code><a title="vastai.vast.apwrap.subparsers" href="#vastai.vast.apwrap.subparsers">subparsers</a></code></li>
-<li><code><a title="vastai.vast.apwrap.get_name" href="#vastai.vast.apwrap.get_name">get_name</a></code></li>
-<li><code><a title="vastai.vast.apwrap.command" href="#vastai.vast.apwrap.command">command</a></code></li>
-<li><code><a title="vastai.vast.apwrap.parse_args" href="#vastai.vast.apwrap.parse_args">parse_args</a></code></li>
-</ul>
+<h4><code><a title="vastai.vast.argument" href="#vastai.vast.argument">argument</a></code></h4>
 </li>
 </ul>
 </li>
