@@ -63,7 +63,7 @@ class VastClient:
             api_key_file (str): Path to file in which to save api_key. 
                 (default "~/.vast_api_key") If `None` api_key will not be stored.
         Returns:
-            VastClient: Self
+            VastClient: self
         """
         save_api_key = True 
         if self.api_key: 
@@ -117,9 +117,9 @@ class VastClient:
             key_dir (str, optional): Path to directory with ssh keys. 
                 (default: '~/.ssh/')
         Raises:
-            PrivateSshKeyNotFound: If private ssh key matching `self.ssh_key` 
+            `vastai.exceptions.PrivateSshKeyNotFound`: If private ssh key matching `self.ssh_key` 
                 is not found in `key_dir`.
-            SshKeyNotSet: If `self.ssh_key` is not set.
+            `vastai.exceptions.SshKeyNotSet`: If `self.ssh_key` is not set.
         """
         if self.ssh_key is None:
             raise(Unauthorized())
@@ -136,10 +136,10 @@ class VastClient:
         
     def get_instances(self):
         """ Retrieves a list of user's configured instances.
-        Returns:
-            `InstanceList`: A list of configured `Instance`s.
         Raises:
-            `ApiKeyNotSet`: If `self.api_key` is not set. 
+            `vastai.exceptions.ApiKeyNotSet`: If `self.api_key` is not set. 
+        Returns:
+            InstanceList: A list of configured `Instance`s.
         """
         if self.api_key is None: raise ApiKeyNotSet()
         
@@ -157,7 +157,7 @@ class VastClient:
         Args:
             id (str): vast.ai instance id.
         Returns:
-            `Instance`
+            Instance
         """
         self.get_instances()
         idx = self.instance_ids.index(id)
@@ -198,8 +198,8 @@ class InstanceList(list):
 class Instance:
     def __init__(self, client, **kwargs):
         """ Vast.ai Instance, instantiated by `VastClient.get_instances()`.  
-            TODO: document Instance params
-        Params:
+            TODO: document Instance attributes
+        Args:
             client (VastClient): 
             **kwargs
         """
@@ -240,7 +240,7 @@ class Instance:
             method (str): HTTP request method.
             json_data (json): JSON data to send in request body.
         Raises:
-            InstanceError: if request doesn't return data['success']
+            `vastai.exceptions.InstanceError`: if request doesn't return data['success']
         """
         assert type(method) is str
         assert method.lower() in ['get', 'put', 'post', 'update', 'delete']
@@ -260,11 +260,11 @@ class Instance:
             raise InstanceError(resp, self.id)
         
     def start(self):
-        """ Starts this configured instance.
+        """ Starts this configured instance.  
         Args:
             None
         Raises: 
-            InstanceError: if request doesn't return data['success']
+            `vastai.exceptions.InstanceError`: if request doesn't return `{'success': true}`
         """
         self._request('put',{ "state": "running" })
         print("Starting instance %i."%self.id )
@@ -274,7 +274,7 @@ class Instance:
         Args:
             None
         Raises: 
-            InstanceError: if request doesn't return data['success']
+            `vastai.exceptions.InstanceError`: if request doesn't return `{'success': true}`
         """
         self._request('put', {"state": "stopped"})
         print("Stopping instance %i."%self.id )
@@ -284,7 +284,7 @@ class Instance:
         Args:
             None
         Raises: 
-            InstanceError: if request doesn't return data['success']
+            `vastai.exceptions.InstanceError`: if request doesn't return `{'success': true}`
         """
         self._request('delete',{})
         print("Destroying instance %s"%self.id)
