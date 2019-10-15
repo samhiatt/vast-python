@@ -287,9 +287,7 @@ class Instance:
         
     def start(self):
         &#34;&#34;&#34; Starts this configured instance.  
-        Args:
-            None
-        Raises: 
+        Raises:
             `vastai.exceptions.InstanceError`: if request doesn&#39;t return `{&#39;success&#39;: true}`
         &#34;&#34;&#34;
         self._request(&#39;put&#39;,{ &#34;state&#34;: &#34;running&#34; })
@@ -297,9 +295,7 @@ class Instance:
 
     def stop(self):
         &#34;&#34;&#34; Stops this configured instance. You can restart the instance later. 
-        Args:
-            None
-        Raises: 
+        Raises:
             `vastai.exceptions.InstanceError`: if request doesn&#39;t return `{&#39;success&#39;: true}`
         &#34;&#34;&#34;
         self._request(&#39;put&#39;, {&#34;state&#34;: &#34;stopped&#34;})
@@ -307,17 +303,14 @@ class Instance:
 
     def destroy(self):
         &#34;&#34;&#34; Destroys this configured instance. All data on the remote instance will be lost.
-        Args:
-            None
-        Raises: 
+        Raises:
             `vastai.exceptions.InstanceError`: if request doesn&#39;t return `{&#39;success&#39;: true}`
         &#34;&#34;&#34;
         self._request(&#39;delete&#39;,{})
         print(&#34;Destroying instance %s&#34;%self.id)
             
     def run_command(self, command_str):
-        &#34;&#34;&#34;
-            Uses paramiko ssh client to execute `command_str` on this remote Instance.
+        &#34;&#34;&#34; Uses paramiko ssh client to execute `command_str` on this remote Instance.
         Args:
             command_str (str): The remote shell command to execute.
         &#34;&#34;&#34;
@@ -799,9 +792,7 @@ TODO: document Instance attributes</p>
         
     def start(self):
         &#34;&#34;&#34; Starts this configured instance.  
-        Args:
-            None
-        Raises: 
+        Raises:
             `vastai.exceptions.InstanceError`: if request doesn&#39;t return `{&#39;success&#39;: true}`
         &#34;&#34;&#34;
         self._request(&#39;put&#39;,{ &#34;state&#34;: &#34;running&#34; })
@@ -809,9 +800,7 @@ TODO: document Instance attributes</p>
 
     def stop(self):
         &#34;&#34;&#34; Stops this configured instance. You can restart the instance later. 
-        Args:
-            None
-        Raises: 
+        Raises:
             `vastai.exceptions.InstanceError`: if request doesn&#39;t return `{&#39;success&#39;: true}`
         &#34;&#34;&#34;
         self._request(&#39;put&#39;, {&#34;state&#34;: &#34;stopped&#34;})
@@ -819,17 +808,14 @@ TODO: document Instance attributes</p>
 
     def destroy(self):
         &#34;&#34;&#34; Destroys this configured instance. All data on the remote instance will be lost.
-        Args:
-            None
-        Raises: 
+        Raises:
             `vastai.exceptions.InstanceError`: if request doesn&#39;t return `{&#39;success&#39;: true}`
         &#34;&#34;&#34;
         self._request(&#39;delete&#39;,{})
         print(&#34;Destroying instance %s&#34;%self.id)
             
     def run_command(self, command_str):
-        &#34;&#34;&#34;
-            Uses paramiko ssh client to execute `command_str` on this remote Instance.
+        &#34;&#34;&#34; Uses paramiko ssh client to execute `command_str` on this remote Instance.
         Args:
             command_str (str): The remote shell command to execute.
         &#34;&#34;&#34;
@@ -884,22 +870,15 @@ Used by vastai.vast.display_table.</p>
 <dd>
 <section class="desc"><p>Starts this configured instance.
 </p>
-<h2 id="args">Args</h2>
-<dl>
-<dt><strong><code>None</code></strong></dt>
-<dd>&nbsp;</dd>
-<dt><strong><code>Raises</code></strong></dt>
-<dd><a title="vastai.exceptions.InstanceError" href="exceptions.html#vastai.exceptions.InstanceError"><code>InstanceError</code></a>: if request doesn't return <code>{'success': true}</code></dd>
-</dl></section>
+<h2 id="raises">Raises</h2>
+<p><a title="vastai.exceptions.InstanceError" href="exceptions.html#vastai.exceptions.InstanceError"><code>InstanceError</code></a>: if request doesn't return <code>{'success': true}</code></p></section>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def start(self):
     &#34;&#34;&#34; Starts this configured instance.  
-    Args:
-        None
-    Raises: 
+    Raises:
         `vastai.exceptions.InstanceError`: if request doesn&#39;t return `{&#39;success&#39;: true}`
     &#34;&#34;&#34;
     self._request(&#39;put&#39;,{ &#34;state&#34;: &#34;running&#34; })
@@ -911,22 +890,15 @@ Used by vastai.vast.display_table.</p>
 </code></dt>
 <dd>
 <section class="desc"><p>Stops this configured instance. You can restart the instance later. </p>
-<h2 id="args">Args</h2>
-<dl>
-<dt><strong><code>None</code></strong></dt>
-<dd>&nbsp;</dd>
-<dt><strong><code>Raises</code></strong></dt>
-<dd><a title="vastai.exceptions.InstanceError" href="exceptions.html#vastai.exceptions.InstanceError"><code>InstanceError</code></a>: if request doesn't return <code>{'success': true}</code></dd>
-</dl></section>
+<h2 id="raises">Raises</h2>
+<p><a title="vastai.exceptions.InstanceError" href="exceptions.html#vastai.exceptions.InstanceError"><code>InstanceError</code></a>: if request doesn't return <code>{'success': true}</code></p></section>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def stop(self):
     &#34;&#34;&#34; Stops this configured instance. You can restart the instance later. 
-    Args:
-        None
-    Raises: 
+    Raises:
         `vastai.exceptions.InstanceError`: if request doesn&#39;t return `{&#39;success&#39;: true}`
     &#34;&#34;&#34;
     self._request(&#39;put&#39;, {&#34;state&#34;: &#34;stopped&#34;})
@@ -938,22 +910,15 @@ Used by vastai.vast.display_table.</p>
 </code></dt>
 <dd>
 <section class="desc"><p>Destroys this configured instance. All data on the remote instance will be lost.</p>
-<h2 id="args">Args</h2>
-<dl>
-<dt><strong><code>None</code></strong></dt>
-<dd>&nbsp;</dd>
-<dt><strong><code>Raises</code></strong></dt>
-<dd><a title="vastai.exceptions.InstanceError" href="exceptions.html#vastai.exceptions.InstanceError"><code>InstanceError</code></a>: if request doesn't return <code>{'success': true}</code></dd>
-</dl></section>
+<h2 id="raises">Raises</h2>
+<p><a title="vastai.exceptions.InstanceError" href="exceptions.html#vastai.exceptions.InstanceError"><code>InstanceError</code></a>: if request doesn't return <code>{'success': true}</code></p></section>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def destroy(self):
     &#34;&#34;&#34; Destroys this configured instance. All data on the remote instance will be lost.
-    Args:
-        None
-    Raises: 
+    Raises:
         `vastai.exceptions.InstanceError`: if request doesn&#39;t return `{&#39;success&#39;: true}`
     &#34;&#34;&#34;
     self._request(&#39;delete&#39;,{})
@@ -975,8 +940,7 @@ Used by vastai.vast.display_table.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def run_command(self, command_str):
-    &#34;&#34;&#34;
-        Uses paramiko ssh client to execute `command_str` on this remote Instance.
+    &#34;&#34;&#34; Uses paramiko ssh client to execute `command_str` on this remote Instance.
     Args:
         command_str (str): The remote shell command to execute.
     &#34;&#34;&#34;
