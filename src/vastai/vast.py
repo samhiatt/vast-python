@@ -29,7 +29,9 @@ except NameError:
     pass
 
 server_url_default = "https://vast.ai/api/v0"
+""" api base url (default: `https://vast.ai/api/v0`) """
 api_key_file_base = "~/.vast_api_key"
+""" /path/to/.vast_api_key (default: `~/.vast_api_key`) """
 api_key_file = os.path.expanduser(api_key_file_base)
 api_key_guard = object()
 
