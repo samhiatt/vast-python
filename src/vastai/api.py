@@ -261,9 +261,7 @@ class Instance:
         
     def start(self):
         """ Starts this configured instance.  
-        Args:
-            None
-        Raises: 
+        Raises:
             `vastai.exceptions.InstanceError`: if request doesn't return `{'success': true}`
         """
         self._request('put',{ "state": "running" })
@@ -271,9 +269,7 @@ class Instance:
 
     def stop(self):
         """ Stops this configured instance. You can restart the instance later. 
-        Args:
-            None
-        Raises: 
+        Raises:
             `vastai.exceptions.InstanceError`: if request doesn't return `{'success': true}`
         """
         self._request('put', {"state": "stopped"})
@@ -281,17 +277,14 @@ class Instance:
 
     def destroy(self):
         """ Destroys this configured instance. All data on the remote instance will be lost.
-        Args:
-            None
-        Raises: 
+        Raises:
             `vastai.exceptions.InstanceError`: if request doesn't return `{'success': true}`
         """
         self._request('delete',{})
         print("Destroying instance %s"%self.id)
             
     def run_command(self, command_str):
-        """
-            Uses paramiko ssh client to execute `command_str` on this remote Instance.
+        """ Uses paramiko ssh client to execute `command_str` on this remote Instance.
         Args:
             command_str (str): The remote shell command to execute.
         """
