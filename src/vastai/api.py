@@ -62,6 +62,8 @@ class VastClient:
                 `getpass` prompt. 
             api_key_file (str): Path to file in which to save api_key. 
                 (default "~/.vast_api_key") If `None` api_key will not be stored.
+        Returns:
+            VastClient: Self
         """
         save_api_key = True 
         if self.api_key: 
@@ -88,9 +90,9 @@ class VastClient:
         try:
             url = self._apiurl("/users/current/")
             if self.api_key:
-              r = requests.get(url) 
+                r = requests.get(url) 
             else:
-              r = requests.put(url, json={'username': username, 'password': password} )
+                r = requests.put(url, json={'username': username, 'password': password} )
             r.raise_for_status()
             resp = r.json()
             # print("Login response:\n",json.dumps(resp))
@@ -297,8 +299,8 @@ class Instance:
         ssh_client.set_missing_host_key_policy(AutoAddPolicy)
         print("Connecting to %s:%i "%(self.ssh_host,self.ssh_port))
         try:
-            ssh_client.connect(self.ssh_host, port=int(self.ssh_port), 
-                       username='root', key_filename=self.client.get_ssh_key_file())
+            ssh_client.connect(self.ssh_host, port=int(self.ssh_port), username='root', 
+                               key_filename=self.client.get_ssh_key_file())
             print("Running command '%s'"%command_str)
             stdin, stdout, stderr = ssh_client.exec_command(command_str)
             print(stdout.read().decode('utf-8'))
