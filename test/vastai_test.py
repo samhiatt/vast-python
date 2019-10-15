@@ -37,7 +37,7 @@ def authorized_client(requests_mock, api_key_file, fs):
     check_attrs(new_client, json_data)
     assert os.path.exists(api_key_file), "Should have created api key file."
     with open(api_key_file) as f:
-    assert f.read()==new_client.api_key, "Saved API key should match client.api_key."
+        assert f.read()==new_client.api_key, "Saved API key should match client.api_key."
     return new_client
 
 @pytest.fixture
@@ -59,8 +59,8 @@ def test_bad_login(requests_mock, fs):
     client = VastClient(api_key_file=None)
     assert client.api_key_file == None
     with pytest.raises(Unauthorized):
-    retVal = client.authenticate('aFakeUser','badPassword')
-    assert retVal.api_key is None
+        retVal = client.authenticate('aFakeUser','badPassword')
+        assert retVal.api_key is None
     assert requests_mock.last_request.json() == {'username': 'aFakeUser', 'password': 'badPassword'}
 
 def test_api_key_env_var(requests_mock, monkeypatch):
@@ -96,7 +96,7 @@ def test_username_password_env_vars(requests_mock, monkeypatch, fs):
     client.authenticate()
     assert client.api_key_file == expanded_path
     with open(client.api_key_file) as f:
-    assert f.read() == client.api_key, "Contents of %s should match client.api_key"%default_api_key_file
+        assert f.read() == client.api_key, "Contents of %s should match client.api_key"%default_api_key_file
     check_attrs(client, stubs.user_json)
     assert client.api_key == test_api_key, "Retrieved api key should match test_api_key."
 
@@ -165,8 +165,8 @@ def check_attrs(obj, attr_dict):
         and that their corresponding values are equal.
     """
     for attr in attr_dict:
-    assert getattr(obj, attr) == attr_dict[attr], \
-           "%s.%s should be '%s'"%(type(obj), attr, attr_dict[attr])
+        assert getattr(obj, attr) == attr_dict[attr], \
+               "%s.%s should be '%s'"%(type(obj), attr, attr_dict[attr])
 
 #def log_request(request, include_headers=False):
 #  print(request.method, request.url, request.body)
