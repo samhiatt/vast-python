@@ -55,7 +55,9 @@ except NameError:
     pass
 
 server_url_default = &#34;https://vast.ai/api/v0&#34;
+&#34;&#34;&#34; api base url (default: `https://vast.ai/api/v0`) &#34;&#34;&#34;
 api_key_file_base = &#34;~/.vast_api_key&#34;
+&#34;&#34;&#34; /path/to/.vast_api_key (default: `~/.vast_api_key`) &#34;&#34;&#34;
 api_key_file = os.path.expanduser(api_key_file_base)
 api_key_guard = object()
 
@@ -1254,6 +1256,14 @@ if __name__ == &#34;__main__&#34;:
 <section>
 <h2 class="section-title" id="header-variables">Global variables</h2>
 <dl>
+<dt id="vastai.vast.server_url_default"><code class="name">var <span class="ident">server_url_default</span></code></dt>
+<dd>
+<section class="desc"><p>api base url (default: <code>&lt;https://vast.ai/api/v0</code>&gt;)</p></section>
+</dd>
+<dt id="vastai.vast.api_key_file_base"><code class="name">var <span class="ident">api_key_file_base</span></code></dt>
+<dd>
+<section class="desc"><p>/path/to/.vast_api_key (default: <code>~/.vast_api_key</code>)</p></section>
+</dd>
 <dt id="vastai.vast.displayable_fields"><code class="name">var <span class="ident">displayable_fields</span></code></dt>
 <dd>
 <section class="desc"><p>Instance fields for use in <a title="vastai.vast.display_table" href="#vastai.vast.display_table"><code>display_table()</code></a> to print a table of offers.</p></section>
@@ -1277,7 +1287,7 @@ if __name__ == &#34;__main__&#34;:
 <dt><strong><code>args</code></strong> :&ensp;<code>dict</code></dt>
 <dd><code>args['api_key']</code> should contain api key.</dd>
 <dt><strong><code>subpath</code></strong> :&ensp;<code>str</code></dt>
-<dd>path to be appended to <code>server_url_default</code>.</dd>
+<dd>path to be appended to <a title="vastai.vast.server_url_default" href="#vastai.vast.server_url_default"><code>server_url_default</code></a>.</dd>
 <dt><strong><code>query_args</code></strong> :&ensp;<code>dict</code>, optional</dt>
 <dd>args to be included in query.</dd>
 </dl></section>
@@ -3087,6 +3097,8 @@ def login(args):
 </li>
 <li><h3><a href="#header-variables">Global variables</a></h3>
 <ul class="">
+<li><code><a title="vastai.vast.server_url_default" href="#vastai.vast.server_url_default">server_url_default</a></code></li>
+<li><code><a title="vastai.vast.api_key_file_base" href="#vastai.vast.api_key_file_base">api_key_file_base</a></code></li>
 <li><code><a title="vastai.vast.displayable_fields" href="#vastai.vast.displayable_fields">displayable_fields</a></code></li>
 <li><code><a title="vastai.vast.instance_fields" href="#vastai.vast.instance_fields">instance_fields</a></code></li>
 </ul>
