@@ -3,8 +3,8 @@ python:
   - 3.5
   - 3.6
 install: "pip install -r requirements_dev.txt"
-before_script: "pip install -e ."
-script: "python -m pytest test/"
+#before_script: "pip install -e ."
+script: "python setup.py test"
 before_deploy: "pdoc --config sort_identifiers=False --html vastai "
 deploy:
   provider: pages
