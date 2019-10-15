@@ -163,6 +163,8 @@ class VastClient:
         
     def _apiurl(self, subpath, **kwargs):
         query_args = {}
+        for k in kwargs:
+            query_args[k] = kwargs[k]
         if self.api_key is not None:
             query_args["api_key"] = self.api_key
         if query_args:
