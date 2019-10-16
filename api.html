@@ -24,7 +24,7 @@
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">import logging
+<pre><code class="python">#import logging
 import getpass
 import os
 import requests
@@ -34,9 +34,11 @@ from urllib.parse import quote_plus
 from collections import namedtuple
 from paramiko.client import SSHClient, AutoAddPolicy
 from paramiko.ssh_exception import NoValidConnectionsError
+from paramiko import RSAKey
+import sys
 from vastai.exceptions import InstanceError, Unauthorized, PrivateSshKeyNotFound
-from vastai.vast import display_table, displayable_fields
-import sys, io
+from vastai.vast import displayable_fields, instance_fields, parse_query
+import pandas as pd
 
 default_api_key_file = os.path.join(&#39;~&#39;,&#39;.vast_api_key&#39;)
 default_ssh_key_dir = os.path.join(&#39;~&#39;,&#39;.ssh&#39;)
@@ -149,16 +151,35 @@ class VastClient:
         &#34;&#34;&#34;
         if self.ssh_key is None:
             raise(Unauthorized())
-        for file in os.listdir(key_dir):
-            pub_key_file = os.path.join(sekf.ssh_key_dir, file+&#39;.pub&#39;)
+        for file in os.listdir(self.ssh_key_dir):
+            pub_key_file = os.path.join(self.ssh_key_dir, file+&#39;.pub&#39;)
             # print (self.ssh_key)
             if os.path.exists(pub_key_file):
                 with open(pub_key_file) as f:
-                    # k = f.read()
-                    # print(k)
                     if f.read().strip()==self.ssh_key.strip(): 
                         return pub_key_file[:-4]
         raise PrivateSshKeyNotFound(key_dir, self.ssh_key)
+
+    def create_ssh_key(self, name=&#39;vastai&#39;):
+        &#34;&#34;&#34; Generate a new ssh RSA token that can be used for connecting to remote instances.
+        Args: 
+            name (str): Name for the RSA key pair. Public key will be named 
+                        &#39;{{self.ssh_key_dir}}/{{name}}.pub&#39;. (default: &#39;vastai&#39;)
+        Returns:
+            str: Path to new public ssh key file.
+        &#34;&#34;&#34;
+        if not os.path.isdir(self.ssh_key_dir):
+            print(&#34;Creating new directory for ssh key file: %s&#34;%self.ssh_key_dir)
+            os.path.mkdir(self.ssh_key_dir)
+        key = RSAKey.generate(4096)
+        public_key_file = os.path.join(self.ssh_key_dir, &#34;%s.pub&#34;%name)
+        private_key_file = os.path.join(self.ssh_key_dir, name)
+        print(&#34;Saving RSA key pair: %s\n    Private key: %s&#34;%(public_key_file, private_key_file))
+        with open(public_key_file,&#39;w&#39;) as f:
+            f.write(key.get_base64())
+        key.write_private_key_file(private_key_file)
+        return public_key_file
+
         
     def get_instances(self):
         &#34;&#34;&#34; Retrieves a list of user&#39;s configured instances.
@@ -169,8 +190,8 @@ class VastClient:
         &#34;&#34;&#34;
         if self.api_key is None: raise ApiKeyNotSet()
         
-        req_url = self._apiurl(&#34;/instances&#34;, owner=&#34;me&#34;);
-        r = requests.get(req_url);
+        req_url = self._apiurl(&#34;/instances&#34;, owner=&#34;me&#34;)
+        r = requests.get(req_url)
         r.raise_for_status()
         # print(json.dumps(r.json()))
         instances = r.json()[&#34;instances&#34;]
@@ -188,6 +209,102 @@ class VastClient:
         self.get_instances()
         idx = self.instance_ids.index(id)
         return self.instances[idx] if idx &gt;= 0 else None
+
+    def create_instance(self, offer_id, price=None, disk=1, image=&#34;tensorflow/tensorflow:nightly-gpu-py3&#34;, 
+                        label=None, onstart=None, onstart_cmd=None, jupyter=False, jupyter_dir=None, jupyter_lab=False,
+                        lang_utf8=False, python_utf8=False, create_from=None, force=False, raw=True):
+        &#34;&#34;&#34; Create a new instance given an offer id. 
+        Args:
+            offer_id (int): Id of offer to launch
+            price (float): Per machine bid price in $/h
+            disk (float): Size of local disk partition in GB
+            image (str): Docker container image to launch
+            label (str): Label to set on the instance
+            onstart (str): Local filename pointing to file to upload and use as onstart script.
+            onstart_cmd (str): Contents of onstart script as single argument
+            jupyter (bool): Launch as a jupyter instance instead of an ssh instance. (default: False)
+            jupyter_dir (str): For runtype &#39;jupyter&#39;, directory in instance to use to launch jupyter. 
+                               Defaults to image&#39;s working directory.
+            jupyter_lab (bool): Launch instance with jupyter lab (default: False)
+            lang_urf8 (bool): Workaround for images with locale problems: install and generate locales 
+                              before instance launch, and set locale to C.UTF-8. (default: False)
+            python_utf8 (bool): Workaround for images with locale problems: set python&#39;s locale to C.UTF-8.
+            create_from (str): Existing instance id to use as basis for new instance. Instance configuration 
+                               should usually be identical, as only the difference from the base image is copied.
+        Raises:
+            `vastai.exceptions.ApiKeyNotSet`: if `client.api_key` isn&#39;t set. 
+        &#34;&#34;&#34;
+        if self.api_key is None: raise ApiKeyNotSet()
+        if onstart is not None:
+            #if not os.path.isfile(onstart):
+            #    raise FileNotFoundError
+            with open(onstart, &#34;r&#34;) as reader:
+                onstart_cmd = reader.read()
+
+        req_url = self._apiurl(&#34;/asks/%i/&#34;%offer_id)
+        req_json = dict( client_id=&#34;me&#34;, image=image, price=price, disk=disk, label=label, 
+                         onstart=onstart_cmd, runtype=&#34;jupyter&#34; if jupyter else &#34;ssh&#34;, 
+                         python_utf8=python_utf8, lang_utf8=lang_utf8,
+                         use_jupyter_lab=jupyter_lab, jupyter_dir=jupyter_dir,
+                         create_from=create_from, force=force )
+        print(req_url, &#39;\n&#39;, json.dumps(req_json))
+        resp = requests.put(req_url, json=req_json)
+        resp.raise_for_status()
+        print(json.dumps(resp.json()))
+        resp_data = resp.json()
+        # TODO: Add a listener for running status.
+        return resp_data
+
+    def search_offers(self, sort_order=&#39;score-&#39;, query=None, instance_type=&#39;on-demand&#39;, 
+                      no_default=True, disable_bundling=False ):
+        &#34;&#34;&#34; Search for available machines to bid on. 
+        Args:
+            order (str): Comma-separated list of fields to sort on. Postfix field with `-` to sort descending.
+                         example: `num_gpus,total_flops-` (default=&#39;score-&#39;)
+            instance_type (str): whether to show `bid`(interruptible) or `on-demand` offers. (default: `on-demand`) 
+            query (str): Query to search for. default: &#39;external=false rentable=true verified=true
+            storage (float): amount of storage to use for pricing, in GiB. (default: 5.0GiB)
+            disable_bundling (bool): Show identical offers. This request is more heavily rate limited. (default: False)
+        Raises:
+            `vastai.exceptions.ApiKeyNotSet`: if `client.api_key` isn&#39;t set. 
+        Returns: 
+            OfferList: A list of offers
+        &#34;&#34;&#34;
+        if self.api_key is None: raise ApiKeyNotSet()
+        
+        field_alias = dict(cuda_vers = &#34;cuda_max_good&#34;, reliability = &#34;reliability2&#34;, dlperf_usd = &#34;dlperf_per_dphtotal&#34;,
+                           dph = &#34;dph_total&#34;, flops_usd = &#34;flops_per_dphtotal&#34; )
+        if no_default:
+            query_args = {}
+        else:
+            query_args = { &#34;verified&#34;:{&#34;eq&#34;:True}, &#34;external&#34;:{&#34;eq&#34;:False}, &#34;rentable&#34;:{&#34;eq&#34;:True} }
+
+        if query is not None:
+            query_args = parse_query(query, query_args)
+        #for k,q in query_args.items():
+        #    print(&#34;%10s: %s&#34;%(k, q));
+        order = []
+        for name in sort_order.split(&#34;,&#34;):
+            name = name.strip()
+            if not name: continue
+            direction = &#34;asc&#34;
+            if name.strip(&#34;-&#34;) != name:
+                direction = &#34;desc&#34;
+            field = name.strip(&#34;-&#34;);
+            if field in field_alias:
+                field = field_alias[field];
+            order.append([field, direction])
+
+        query_args[&#34;order&#34;] = order
+        query_args[&#34;type&#34;]  = instance_type
+        if disable_bundling:
+            query_args[&#34;disable_bundling&#34;] = True
+
+        req_url = self._apiurl(&#34;/bundles&#34;, q=query_args)
+        resp = requests.get(req_url);
+        resp.raise_for_status()
+        offer_list = OfferList(resp.json()[&#34;offers&#34;])
+        return offer_list
         
     def _apiurl(self, subpath, **kwargs):
         query_args = {}
@@ -203,23 +320,69 @@ class VastClient:
             return api_base_url + subpath
 
 
-def _grab_display_table_out(instances):
-    output = io.StringIO()
-    sys.stdout = output
-    display_table(instances, displayable_fields)
-    sys.stdout = sys.__stdout__
-    result = output.getvalue()
-    return result    
-
 class InstanceList(list):
     &#34;&#34;&#34; A list of `Instance`s, returned by `VastClient.get_instances()`
     &#34;&#34;&#34;
+    display_columns = [field[0] for field in instance_fields]
+    column_mapper = { field[0]:field[1] for field in instance_fields}
+    value_formatters = { field[0]:(field[2],field[3]) for field in instance_fields}
+    def as_df(self, columns=None, include_columns=None, exclude_columns=None, 
+              rename_columns=True, format_values=True):
+        &#34;&#34;&#34; Get list as a `pandas.DataFrame`
+        Args:
+            columns (bool or list of str): Include only the specified columns. 
+                If columns is True will show all columns. (default: 
+                `InstanceList.display_columns`)
+            include_columns (list of str): A list of additional columns names to 
+                include in output.
+            exclude_columns (list of str): A list of columns names to exclude 
+                from output.
+            rename_columns (bool or dict of str): Rename data frame columns. If 
+                `rename_columns` is a dict will rename with the provided mapping. 
+                e.g. `{&#39;id&#39;:&#39;host_id&#39;}` renames col `id` to `host_id`.
+                If `rename_columns` is True will use the mapping defined in 
+                `InstanceList.column_mapper`. 
+                If `rename_columns` is False the column names will stay the same.
+            format_values (bool): Format values according to the string formatters 
+                specified in `instance_fields`.
+        &#34;&#34;&#34;
+        if columns is True:
+            columns = None # Setting DataFrame `columns=None` returns all columns.
+        elif columns is None: #Use the default, InstanceList.display_columns
+            columns = self.display_columns
+        else: 
+            columns = columns
+        if type(columns) is list and type(include_columns) is list:
+            columns = columns + include_columns
+        elif columns is not None and type(columns) is not list:
+            raise ValueError(&#34;&#39;columns&#39; should be either True, None, or a list of strings. Got &#39;%s&#39; instead.&#34;%type(columns))
+        # Remove columns in exclude_columns
+        if type(columns) is list and type(exclude_columns) is list:
+            columns = [c for c in columns if c not in exclude_columns]
+        df = pd.DataFrame(self, columns=columns)
+        if format_values:
+            for k in self.value_formatters.keys():
+                fmt = self.value_formatters[k]
+                df[k] = [ fmt[0].format(fmt[1](val) if fmt[1] is not None else val) for val in df[k] ]
+        if rename_columns is True:
+            df = df.rename(columns=self.column_mapper)
+        elif type(rename_columns) is dict:
+            df = df.rename(columns=rename_columns)
+        return df
+
     def __dict__(self):
         return {i.id:i.__dict__() for i in self}
     def __json__(self):
         return json.dumps([i.__dict__() for i in self])
     def __repr__(self):
-        return _grab_display_table_out(self)
+        return self.as_df().to_string(columns=self.column_mapper.values())
+        
+class OfferList(InstanceList):
+    &#34;&#34;&#34; A list of Offerss, returned by `VastClient.search_offers()`
+    &#34;&#34;&#34;
+    display_columns = [field[0] for field in displayable_fields]
+    column_mapper = { field[0]:field[1] for field in displayable_fields}
+    value_formatters = { field[0]:(field[2],field[3]) for field in displayable_fields}
 
 class Instance:
     def __init__(self, client, **kwargs):
@@ -237,9 +400,9 @@ class Instance:
         self.status = self.actual_status if hasattr(self, &#39;actual_status&#39;) else None
 
     def __repr__(self):
-        &#34;&#34;&#34; Uses `vast.display_table` for display.
+        &#34;&#34;&#34; Uses `pandas.DataTable` for display.
         &#34;&#34;&#34;
-        return _grab_display_table_out([self])
+        return InstanceList([self.__dict__()]).__repr__()
 
     def __dict__(self):
         &#34;&#34;&#34; Gets dict of serializable fields.
@@ -251,46 +414,77 @@ class Instance:
         &#34;&#34;&#34;
         return json.dumps(self.__dict__())
 
-    def get(self, attr, default=None):
-        &#34;&#34;&#34; Gets a specified attribute from this Instance. 
-            Used by vastai.vast.display_table.
-        Args:
-            attr (str): Instance attribute
-            default: Default value, if attribute not found. (default: None)
-        &#34;&#34;&#34;
-        return getattr(self, attr) if hasattr(self, attr) else default
-
-    def _request(self, method, json_data):
+#    def get(self, attr, default=None):
+#        &#34;&#34;&#34; Gets a specified attribute from this Instance. 
+#            Used by vastai.vast.display_table.
+#        Args:
+#            attr (str): Instance attribute
+#            default: Default value, if attribute not found. (default: None)
+#        &#34;&#34;&#34;
+#        return getattr(self, attr) if hasattr(self, attr) else default
+#
+    def _request(self, method, url_base, json_data):
         &#34;&#34;&#34; Makes http request to `&lt;api_base_url&gt;/instances/&lt;instance.id&gt;/` 
-        Params:
+        Args:
             method (str): HTTP request method.
+            url_base (str): Request URL, without api_base_url or request params. 
+                            e.g. /instances/bid_price/{id}/
             json_data (json): JSON data to send in request body.
         Raises:
             `vastai.exceptions.InstanceError`: if request doesn&#39;t return data[&#39;success&#39;]
         &#34;&#34;&#34;
         assert type(method) is str
         assert method.lower() in [&#39;get&#39;, &#39;put&#39;, &#39;post&#39;, &#39;update&#39;, &#39;delete&#39;]
-        url = self.client._apiurl(&#34;/instances/%s/&#34;%self.id)
+        url = self.client._apiurl(url_base)
         resp = requests.request(method, url, json=json_data)
         resp.raise_for_status()
         if resp.status_code == 200:
             resp_data = resp.json()
-            if resp_data[&#39;success&#39;]:
-                logging.info(json.dumps(resp_data))
-                return resp_data
-            else:
-                logging.debug(json.dumps(resp_data))
-                raise InstanceError(resp_data[&#39;msg&#39;], self.id)
+            #if resp_data[&#39;success&#39;]:
+            #    logging.info(json.dumps(resp_data))
+            #    return resp_data
+            #else:
+            #    logging.debug(json.dumps(resp_data))
+            #    raise InstanceError(resp_data[&#39;msg&#39;], self.id)
         else:
-            logging.debug(resp)
+            #logging.debug(resp)
+            print(&#34;Error:&#34;, resp)
             raise InstanceError(resp, self.id)
+        return resp_data
+
+    def get_ssh_connection_command(self, tunnel_local_port=None, tunnel_remote_port=None):
+        &#34;&#34;&#34; Convenience method to get ssh command for connecting to this machine. 
+            Optionally include params for reverse proxy ssh tunnel. (e.g. to access
+            a port behind firewall on the remote machine.
+        Args:
+            tunnel_local_port (int, optional): local port for ssh tunnel. (default: None)
+            tunnel_remote_port (int, optional): remote port for ssh tunnel. 
+                                                (default: `tunnel_local_port` or None)
+        Returns:
+            str: Ssh connection command 
+        &#34;&#34;&#34;
+        cmd = &#34;ssh root@%s -p %i -i %s&#34;%(self.ssh_host, self.ssh_port, self.client._get_ssh_key_file())
+        if tunnel_local_port:
+            cmd += &#34; -L %i:localhost:%i&#34;%(tunnel_local_port, tunnel_remote_port or tunnel_local_port)
+        return cmd
+
+
+    def change_bid(self, price):
+        &#34;&#34;&#34; Set a new bid price for an interruptible instance.
+        Args:
+            price (float): per machine bid price in $/hour
+        Raises:
+            `vastai.exceptions.InstanceError`: if request doesn&#39;t return `{&#39;success&#39;: true}`
+        &#34;&#34;&#34;
+        resp = self._request(&#39;put&#39;, &#34;/instances/bid_price/%s/&#34;%self.id, {&#34;client_id&#34;: &#34;me&#34;, &#34;price&#34;: price })
+        print(&#34;Bid changed to $%.3f/hr&#34;%price)
         
     def start(self):
         &#34;&#34;&#34; Starts this configured instance.  
         Raises:
             `vastai.exceptions.InstanceError`: if request doesn&#39;t return `{&#39;success&#39;: true}`
         &#34;&#34;&#34;
-        self._request(&#39;put&#39;,{ &#34;state&#34;: &#34;running&#34; })
+        self._request(&#39;put&#39;, &#34;/instances/%s/&#34;%self.id, { &#34;state&#34;: &#34;running&#34; })
         print(&#34;Starting instance %i.&#34;%self.id )
 
     def stop(self):
@@ -298,7 +492,7 @@ class Instance:
         Raises:
             `vastai.exceptions.InstanceError`: if request doesn&#39;t return `{&#39;success&#39;: true}`
         &#34;&#34;&#34;
-        self._request(&#39;put&#39;, {&#34;state&#34;: &#34;stopped&#34;})
+        self._request(&#39;put&#39;, &#34;/instances/%s/&#34;%self.id, {&#34;state&#34;: &#34;stopped&#34;})
         print(&#34;Stopping instance %i.&#34;%self.id )
 
     def destroy(self):
@@ -306,7 +500,7 @@ class Instance:
         Raises:
             `vastai.exceptions.InstanceError`: if request doesn&#39;t return `{&#39;success&#39;: true}`
         &#34;&#34;&#34;
-        self._request(&#39;delete&#39;,{})
+        self._request(&#39;delete&#39;, &#34;/instances/%s/&#34;%self.id, {})
         print(&#34;Destroying instance %s&#34;%self.id)
             
     def run_command(self, command_str):
@@ -319,7 +513,7 @@ class Instance:
         print(&#34;Connecting to %s:%i &#34;%(self.ssh_host,self.ssh_port))
         try:
             ssh_client.connect(self.ssh_host, port=int(self.ssh_port), username=&#39;root&#39;, 
-                               key_filename=self.client.get_ssh_key_file())
+                               key_filename=self.client._get_ssh_key_file())
             print(&#34;Running command &#39;%s&#39;&#34;%command_str)
             stdin, stdout, stderr = ssh_client.exec_command(command_str)
             print(stdout.read().decode(&#39;utf-8&#39;))
@@ -473,16 +667,35 @@ instances. (default: ~/.ssh/)</dd>
         &#34;&#34;&#34;
         if self.ssh_key is None:
             raise(Unauthorized())
-        for file in os.listdir(key_dir):
-            pub_key_file = os.path.join(sekf.ssh_key_dir, file+&#39;.pub&#39;)
+        for file in os.listdir(self.ssh_key_dir):
+            pub_key_file = os.path.join(self.ssh_key_dir, file+&#39;.pub&#39;)
             # print (self.ssh_key)
             if os.path.exists(pub_key_file):
                 with open(pub_key_file) as f:
-                    # k = f.read()
-                    # print(k)
                     if f.read().strip()==self.ssh_key.strip(): 
                         return pub_key_file[:-4]
         raise PrivateSshKeyNotFound(key_dir, self.ssh_key)
+
+    def create_ssh_key(self, name=&#39;vastai&#39;):
+        &#34;&#34;&#34; Generate a new ssh RSA token that can be used for connecting to remote instances.
+        Args: 
+            name (str): Name for the RSA key pair. Public key will be named 
+                        &#39;{{self.ssh_key_dir}}/{{name}}.pub&#39;. (default: &#39;vastai&#39;)
+        Returns:
+            str: Path to new public ssh key file.
+        &#34;&#34;&#34;
+        if not os.path.isdir(self.ssh_key_dir):
+            print(&#34;Creating new directory for ssh key file: %s&#34;%self.ssh_key_dir)
+            os.path.mkdir(self.ssh_key_dir)
+        key = RSAKey.generate(4096)
+        public_key_file = os.path.join(self.ssh_key_dir, &#34;%s.pub&#34;%name)
+        private_key_file = os.path.join(self.ssh_key_dir, name)
+        print(&#34;Saving RSA key pair: %s\n    Private key: %s&#34;%(public_key_file, private_key_file))
+        with open(public_key_file,&#39;w&#39;) as f:
+            f.write(key.get_base64())
+        key.write_private_key_file(private_key_file)
+        return public_key_file
+
         
     def get_instances(self):
         &#34;&#34;&#34; Retrieves a list of user&#39;s configured instances.
@@ -493,8 +706,8 @@ instances. (default: ~/.ssh/)</dd>
         &#34;&#34;&#34;
         if self.api_key is None: raise ApiKeyNotSet()
         
-        req_url = self._apiurl(&#34;/instances&#34;, owner=&#34;me&#34;);
-        r = requests.get(req_url);
+        req_url = self._apiurl(&#34;/instances&#34;, owner=&#34;me&#34;)
+        r = requests.get(req_url)
         r.raise_for_status()
         # print(json.dumps(r.json()))
         instances = r.json()[&#34;instances&#34;]
@@ -512,6 +725,102 @@ instances. (default: ~/.ssh/)</dd>
         self.get_instances()
         idx = self.instance_ids.index(id)
         return self.instances[idx] if idx &gt;= 0 else None
+
+    def create_instance(self, offer_id, price=None, disk=1, image=&#34;tensorflow/tensorflow:nightly-gpu-py3&#34;, 
+                        label=None, onstart=None, onstart_cmd=None, jupyter=False, jupyter_dir=None, jupyter_lab=False,
+                        lang_utf8=False, python_utf8=False, create_from=None, force=False, raw=True):
+        &#34;&#34;&#34; Create a new instance given an offer id. 
+        Args:
+            offer_id (int): Id of offer to launch
+            price (float): Per machine bid price in $/h
+            disk (float): Size of local disk partition in GB
+            image (str): Docker container image to launch
+            label (str): Label to set on the instance
+            onstart (str): Local filename pointing to file to upload and use as onstart script.
+            onstart_cmd (str): Contents of onstart script as single argument
+            jupyter (bool): Launch as a jupyter instance instead of an ssh instance. (default: False)
+            jupyter_dir (str): For runtype &#39;jupyter&#39;, directory in instance to use to launch jupyter. 
+                               Defaults to image&#39;s working directory.
+            jupyter_lab (bool): Launch instance with jupyter lab (default: False)
+            lang_urf8 (bool): Workaround for images with locale problems: install and generate locales 
+                              before instance launch, and set locale to C.UTF-8. (default: False)
+            python_utf8 (bool): Workaround for images with locale problems: set python&#39;s locale to C.UTF-8.
+            create_from (str): Existing instance id to use as basis for new instance. Instance configuration 
+                               should usually be identical, as only the difference from the base image is copied.
+        Raises:
+            `vastai.exceptions.ApiKeyNotSet`: if `client.api_key` isn&#39;t set. 
+        &#34;&#34;&#34;
+        if self.api_key is None: raise ApiKeyNotSet()
+        if onstart is not None:
+            #if not os.path.isfile(onstart):
+            #    raise FileNotFoundError
+            with open(onstart, &#34;r&#34;) as reader:
+                onstart_cmd = reader.read()
+
+        req_url = self._apiurl(&#34;/asks/%i/&#34;%offer_id)
+        req_json = dict( client_id=&#34;me&#34;, image=image, price=price, disk=disk, label=label, 
+                         onstart=onstart_cmd, runtype=&#34;jupyter&#34; if jupyter else &#34;ssh&#34;, 
+                         python_utf8=python_utf8, lang_utf8=lang_utf8,
+                         use_jupyter_lab=jupyter_lab, jupyter_dir=jupyter_dir,
+                         create_from=create_from, force=force )
+        print(req_url, &#39;\n&#39;, json.dumps(req_json))
+        resp = requests.put(req_url, json=req_json)
+        resp.raise_for_status()
+        print(json.dumps(resp.json()))
+        resp_data = resp.json()
+        # TODO: Add a listener for running status.
+        return resp_data
+
+    def search_offers(self, sort_order=&#39;score-&#39;, query=None, instance_type=&#39;on-demand&#39;, 
+                      no_default=True, disable_bundling=False ):
+        &#34;&#34;&#34; Search for available machines to bid on. 
+        Args:
+            order (str): Comma-separated list of fields to sort on. Postfix field with `-` to sort descending.
+                         example: `num_gpus,total_flops-` (default=&#39;score-&#39;)
+            instance_type (str): whether to show `bid`(interruptible) or `on-demand` offers. (default: `on-demand`) 
+            query (str): Query to search for. default: &#39;external=false rentable=true verified=true
+            storage (float): amount of storage to use for pricing, in GiB. (default: 5.0GiB)
+            disable_bundling (bool): Show identical offers. This request is more heavily rate limited. (default: False)
+        Raises:
+            `vastai.exceptions.ApiKeyNotSet`: if `client.api_key` isn&#39;t set. 
+        Returns: 
+            OfferList: A list of offers
+        &#34;&#34;&#34;
+        if self.api_key is None: raise ApiKeyNotSet()
+        
+        field_alias = dict(cuda_vers = &#34;cuda_max_good&#34;, reliability = &#34;reliability2&#34;, dlperf_usd = &#34;dlperf_per_dphtotal&#34;,
+                           dph = &#34;dph_total&#34;, flops_usd = &#34;flops_per_dphtotal&#34; )
+        if no_default:
+            query_args = {}
+        else:
+            query_args = { &#34;verified&#34;:{&#34;eq&#34;:True}, &#34;external&#34;:{&#34;eq&#34;:False}, &#34;rentable&#34;:{&#34;eq&#34;:True} }
+
+        if query is not None:
+            query_args = parse_query(query, query_args)
+        #for k,q in query_args.items():
+        #    print(&#34;%10s: %s&#34;%(k, q));
+        order = []
+        for name in sort_order.split(&#34;,&#34;):
+            name = name.strip()
+            if not name: continue
+            direction = &#34;asc&#34;
+            if name.strip(&#34;-&#34;) != name:
+                direction = &#34;desc&#34;
+            field = name.strip(&#34;-&#34;);
+            if field in field_alias:
+                field = field_alias[field];
+            order.append([field, direction])
+
+        query_args[&#34;order&#34;] = order
+        query_args[&#34;type&#34;]  = instance_type
+        if disable_bundling:
+            query_args[&#34;disable_bundling&#34;] = True
+
+        req_url = self._apiurl(&#34;/bundles&#34;, q=query_args)
+        resp = requests.get(req_url);
+        resp.raise_for_status()
+        offer_list = OfferList(resp.json()[&#34;offers&#34;])
+        return offer_list
         
     def _apiurl(self, subpath, **kwargs):
         query_args = {}
@@ -615,6 +924,44 @@ looks for password in VAST_PASSWORD env variable or uses
             raise Unauthorized(&#34;Error logging in as %s.&#34;%username)</code></pre>
 </details>
 </dd>
+<dt id="vastai.api.VastClient.create_ssh_key"><code class="name flex">
+<span>def <span class="ident">create_ssh_key</span></span>(<span>self, name='vastai')</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Generate a new ssh RSA token that can be used for connecting to remote instances.
+Args:
+name (str): Name for the RSA key pair. Public key will be named
+'{{self.ssh_key_dir}}/{{name}}.pub'. (default: 'vastai')</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>str</code></strong></dt>
+<dd>Path to new public ssh key file.</dd>
+</dl></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def create_ssh_key(self, name=&#39;vastai&#39;):
+    &#34;&#34;&#34; Generate a new ssh RSA token that can be used for connecting to remote instances.
+    Args: 
+        name (str): Name for the RSA key pair. Public key will be named 
+                    &#39;{{self.ssh_key_dir}}/{{name}}.pub&#39;. (default: &#39;vastai&#39;)
+    Returns:
+        str: Path to new public ssh key file.
+    &#34;&#34;&#34;
+    if not os.path.isdir(self.ssh_key_dir):
+        print(&#34;Creating new directory for ssh key file: %s&#34;%self.ssh_key_dir)
+        os.path.mkdir(self.ssh_key_dir)
+    key = RSAKey.generate(4096)
+    public_key_file = os.path.join(self.ssh_key_dir, &#34;%s.pub&#34;%name)
+    private_key_file = os.path.join(self.ssh_key_dir, name)
+    print(&#34;Saving RSA key pair: %s\n    Private key: %s&#34;%(public_key_file, private_key_file))
+    with open(public_key_file,&#39;w&#39;) as f:
+        f.write(key.get_base64())
+    key.write_private_key_file(private_key_file)
+    return public_key_file</code></pre>
+</details>
+</dd>
 <dt id="vastai.api.VastClient.get_instances"><code class="name flex">
 <span>def <span class="ident">get_instances</span></span>(<span>self)</span>
 </code></dt>
@@ -640,8 +987,8 @@ looks for password in VAST_PASSWORD env variable or uses
     &#34;&#34;&#34;
     if self.api_key is None: raise ApiKeyNotSet()
     
-    req_url = self._apiurl(&#34;/instances&#34;, owner=&#34;me&#34;);
-    r = requests.get(req_url);
+    req_url = self._apiurl(&#34;/instances&#34;, owner=&#34;me&#34;)
+    r = requests.get(req_url)
     r.raise_for_status()
     # print(json.dumps(r.json()))
     instances = r.json()[&#34;instances&#34;]
@@ -681,6 +1028,176 @@ looks for password in VAST_PASSWORD env variable or uses
     return self.instances[idx] if idx &gt;= 0 else None</code></pre>
 </details>
 </dd>
+<dt id="vastai.api.VastClient.create_instance"><code class="name flex">
+<span>def <span class="ident">create_instance</span></span>(<span>self, offer_id, price=None, disk=1, image='tensorflow/tensorflow:nightly-gpu-py3', label=None, onstart=None, onstart_cmd=None, jupyter=False, jupyter_dir=None, jupyter_lab=False, lang_utf8=False, python_utf8=False, create_from=None, force=False, raw=True)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Create a new instance given an offer id. </p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>offer_id</code></strong> :&ensp;<code>int</code></dt>
+<dd>Id of offer to launch</dd>
+<dt><strong><code>price</code></strong> :&ensp;<code>float</code></dt>
+<dd>Per machine bid price in $/h</dd>
+<dt><strong><code>disk</code></strong> :&ensp;<code>float</code></dt>
+<dd>Size of local disk partition in GB</dd>
+<dt><strong><code>image</code></strong> :&ensp;<code>str</code></dt>
+<dd>Docker container image to launch</dd>
+<dt><strong><code>label</code></strong> :&ensp;<code>str</code></dt>
+<dd>Label to set on the instance</dd>
+<dt><strong><code>onstart</code></strong> :&ensp;<code>str</code></dt>
+<dd>Local filename pointing to file to upload and use as onstart script.</dd>
+<dt><strong><code>onstart_cmd</code></strong> :&ensp;<code>str</code></dt>
+<dd>Contents of onstart script as single argument</dd>
+<dt><strong><code>jupyter</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Launch as a jupyter instance instead of an ssh instance. (default: False)</dd>
+<dt><strong><code>jupyter_dir</code></strong> :&ensp;<code>str</code></dt>
+<dd>For runtype 'jupyter', directory in instance to use to launch jupyter.
+Defaults to image's working directory.</dd>
+<dt><strong><code>jupyter_lab</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Launch instance with jupyter lab (default: False)</dd>
+<dt><strong><code>lang_urf8</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Workaround for images with locale problems: install and generate locales
+before instance launch, and set locale to C.UTF-8. (default: False)</dd>
+<dt><strong><code>python_utf8</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Workaround for images with locale problems: set python's locale to C.UTF-8.</dd>
+<dt><strong><code>create_from</code></strong> :&ensp;<code>str</code></dt>
+<dd>Existing instance id to use as basis for new instance. Instance configuration
+should usually be identical, as only the difference from the base image is copied.</dd>
+</dl>
+<h2 id="raises">Raises</h2>
+<p><a title="vastai.exceptions.ApiKeyNotSet" href="exceptions.html#vastai.exceptions.ApiKeyNotSet"><code>ApiKeyNotSet</code></a>: if <code>client.api_key</code> isn't set.</p></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def create_instance(self, offer_id, price=None, disk=1, image=&#34;tensorflow/tensorflow:nightly-gpu-py3&#34;, 
+                    label=None, onstart=None, onstart_cmd=None, jupyter=False, jupyter_dir=None, jupyter_lab=False,
+                    lang_utf8=False, python_utf8=False, create_from=None, force=False, raw=True):
+    &#34;&#34;&#34; Create a new instance given an offer id. 
+    Args:
+        offer_id (int): Id of offer to launch
+        price (float): Per machine bid price in $/h
+        disk (float): Size of local disk partition in GB
+        image (str): Docker container image to launch
+        label (str): Label to set on the instance
+        onstart (str): Local filename pointing to file to upload and use as onstart script.
+        onstart_cmd (str): Contents of onstart script as single argument
+        jupyter (bool): Launch as a jupyter instance instead of an ssh instance. (default: False)
+        jupyter_dir (str): For runtype &#39;jupyter&#39;, directory in instance to use to launch jupyter. 
+                           Defaults to image&#39;s working directory.
+        jupyter_lab (bool): Launch instance with jupyter lab (default: False)
+        lang_urf8 (bool): Workaround for images with locale problems: install and generate locales 
+                          before instance launch, and set locale to C.UTF-8. (default: False)
+        python_utf8 (bool): Workaround for images with locale problems: set python&#39;s locale to C.UTF-8.
+        create_from (str): Existing instance id to use as basis for new instance. Instance configuration 
+                           should usually be identical, as only the difference from the base image is copied.
+    Raises:
+        `vastai.exceptions.ApiKeyNotSet`: if `client.api_key` isn&#39;t set. 
+    &#34;&#34;&#34;
+    if self.api_key is None: raise ApiKeyNotSet()
+    if onstart is not None:
+        #if not os.path.isfile(onstart):
+        #    raise FileNotFoundError
+        with open(onstart, &#34;r&#34;) as reader:
+            onstart_cmd = reader.read()
+
+    req_url = self._apiurl(&#34;/asks/%i/&#34;%offer_id)
+    req_json = dict( client_id=&#34;me&#34;, image=image, price=price, disk=disk, label=label, 
+                     onstart=onstart_cmd, runtype=&#34;jupyter&#34; if jupyter else &#34;ssh&#34;, 
+                     python_utf8=python_utf8, lang_utf8=lang_utf8,
+                     use_jupyter_lab=jupyter_lab, jupyter_dir=jupyter_dir,
+                     create_from=create_from, force=force )
+    print(req_url, &#39;\n&#39;, json.dumps(req_json))
+    resp = requests.put(req_url, json=req_json)
+    resp.raise_for_status()
+    print(json.dumps(resp.json()))
+    resp_data = resp.json()
+    # TODO: Add a listener for running status.
+    return resp_data</code></pre>
+</details>
+</dd>
+<dt id="vastai.api.VastClient.search_offers"><code class="name flex">
+<span>def <span class="ident">search_offers</span></span>(<span>self, sort_order='score-', query=None, instance_type='on-demand', no_default=True, disable_bundling=False)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Search for available machines to bid on. </p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>order</code></strong> :&ensp;<code>str</code></dt>
+<dd>Comma-separated list of fields to sort on. Postfix field with <code>-</code> to sort descending.
+example: <code>num_gpus,total_flops-</code> (default='score-')</dd>
+<dt><strong><code>instance_type</code></strong> :&ensp;<code>str</code></dt>
+<dd>whether to show <code>bid</code>(interruptible) or <code>on-demand</code> offers. (default: <code>on-demand</code>) </dd>
+<dt><strong><code>query</code></strong> :&ensp;<code>str</code></dt>
+<dd>Query to search for. default: 'external=false rentable=true verified=true</dd>
+<dt><strong><code>storage</code></strong> :&ensp;<code>float</code></dt>
+<dd>amount of storage to use for pricing, in GiB. (default: 5.0GiB)</dd>
+<dt><strong><code>disable_bundling</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Show identical offers. This request is more heavily rate limited. (default: False)</dd>
+</dl>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><a title="vastai.exceptions.ApiKeyNotSet" href="exceptions.html#vastai.exceptions.ApiKeyNotSet"><code>ApiKeyNotSet</code></a>: if <code>client.api_key</code> isn't set.</dt>
+<dt><strong><code>Returns</code></strong></dt>
+<dd>OfferList: A list of offers</dd>
+</dl></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def search_offers(self, sort_order=&#39;score-&#39;, query=None, instance_type=&#39;on-demand&#39;, 
+                  no_default=True, disable_bundling=False ):
+    &#34;&#34;&#34; Search for available machines to bid on. 
+    Args:
+        order (str): Comma-separated list of fields to sort on. Postfix field with `-` to sort descending.
+                     example: `num_gpus,total_flops-` (default=&#39;score-&#39;)
+        instance_type (str): whether to show `bid`(interruptible) or `on-demand` offers. (default: `on-demand`) 
+        query (str): Query to search for. default: &#39;external=false rentable=true verified=true
+        storage (float): amount of storage to use for pricing, in GiB. (default: 5.0GiB)
+        disable_bundling (bool): Show identical offers. This request is more heavily rate limited. (default: False)
+    Raises:
+        `vastai.exceptions.ApiKeyNotSet`: if `client.api_key` isn&#39;t set. 
+    Returns: 
+        OfferList: A list of offers
+    &#34;&#34;&#34;
+    if self.api_key is None: raise ApiKeyNotSet()
+    
+    field_alias = dict(cuda_vers = &#34;cuda_max_good&#34;, reliability = &#34;reliability2&#34;, dlperf_usd = &#34;dlperf_per_dphtotal&#34;,
+                       dph = &#34;dph_total&#34;, flops_usd = &#34;flops_per_dphtotal&#34; )
+    if no_default:
+        query_args = {}
+    else:
+        query_args = { &#34;verified&#34;:{&#34;eq&#34;:True}, &#34;external&#34;:{&#34;eq&#34;:False}, &#34;rentable&#34;:{&#34;eq&#34;:True} }
+
+    if query is not None:
+        query_args = parse_query(query, query_args)
+    #for k,q in query_args.items():
+    #    print(&#34;%10s: %s&#34;%(k, q));
+    order = []
+    for name in sort_order.split(&#34;,&#34;):
+        name = name.strip()
+        if not name: continue
+        direction = &#34;asc&#34;
+        if name.strip(&#34;-&#34;) != name:
+            direction = &#34;desc&#34;
+        field = name.strip(&#34;-&#34;);
+        if field in field_alias:
+            field = field_alias[field];
+        order.append([field, direction])
+
+    query_args[&#34;order&#34;] = order
+    query_args[&#34;type&#34;]  = instance_type
+    if disable_bundling:
+        query_args[&#34;disable_bundling&#34;] = True
+
+    req_url = self._apiurl(&#34;/bundles&#34;, q=query_args)
+    resp = requests.get(req_url);
+    resp.raise_for_status()
+    offer_list = OfferList(resp.json()[&#34;offers&#34;])
+    return offer_list</code></pre>
+</details>
+</dd>
 </dl>
 </dd>
 <dt id="vastai.api.InstanceList"><code class="flex name class">
@@ -696,16 +1213,217 @@ looks for password in VAST_PASSWORD env variable or uses
 <pre><code class="python">class InstanceList(list):
     &#34;&#34;&#34; A list of `Instance`s, returned by `VastClient.get_instances()`
     &#34;&#34;&#34;
+    display_columns = [field[0] for field in instance_fields]
+    column_mapper = { field[0]:field[1] for field in instance_fields}
+    value_formatters = { field[0]:(field[2],field[3]) for field in instance_fields}
+    def as_df(self, columns=None, include_columns=None, exclude_columns=None, 
+              rename_columns=True, format_values=True):
+        &#34;&#34;&#34; Get list as a `pandas.DataFrame`
+        Args:
+            columns (bool or list of str): Include only the specified columns. 
+                If columns is True will show all columns. (default: 
+                `InstanceList.display_columns`)
+            include_columns (list of str): A list of additional columns names to 
+                include in output.
+            exclude_columns (list of str): A list of columns names to exclude 
+                from output.
+            rename_columns (bool or dict of str): Rename data frame columns. If 
+                `rename_columns` is a dict will rename with the provided mapping. 
+                e.g. `{&#39;id&#39;:&#39;host_id&#39;}` renames col `id` to `host_id`.
+                If `rename_columns` is True will use the mapping defined in 
+                `InstanceList.column_mapper`. 
+                If `rename_columns` is False the column names will stay the same.
+            format_values (bool): Format values according to the string formatters 
+                specified in `instance_fields`.
+        &#34;&#34;&#34;
+        if columns is True:
+            columns = None # Setting DataFrame `columns=None` returns all columns.
+        elif columns is None: #Use the default, InstanceList.display_columns
+            columns = self.display_columns
+        else: 
+            columns = columns
+        if type(columns) is list and type(include_columns) is list:
+            columns = columns + include_columns
+        elif columns is not None and type(columns) is not list:
+            raise ValueError(&#34;&#39;columns&#39; should be either True, None, or a list of strings. Got &#39;%s&#39; instead.&#34;%type(columns))
+        # Remove columns in exclude_columns
+        if type(columns) is list and type(exclude_columns) is list:
+            columns = [c for c in columns if c not in exclude_columns]
+        df = pd.DataFrame(self, columns=columns)
+        if format_values:
+            for k in self.value_formatters.keys():
+                fmt = self.value_formatters[k]
+                df[k] = [ fmt[0].format(fmt[1](val) if fmt[1] is not None else val) for val in df[k] ]
+        if rename_columns is True:
+            df = df.rename(columns=self.column_mapper)
+        elif type(rename_columns) is dict:
+            df = df.rename(columns=rename_columns)
+        return df
+
     def __dict__(self):
         return {i.id:i.__dict__() for i in self}
     def __json__(self):
         return json.dumps([i.__dict__() for i in self])
     def __repr__(self):
-        return _grab_display_table_out(self)</code></pre>
+        return self.as_df().to_string(columns=self.column_mapper.values())</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
 <li>builtins.list</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="vastai.api.OfferList" href="#vastai.api.OfferList">OfferList</a></li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="vastai.api.InstanceList.display_columns"><code class="name">var <span class="ident">display_columns</span></code></dt>
+<dd>
+<section class="desc"><p>list() -&gt; new empty list
+list(iterable) -&gt; new list initialized from iterable's items</p></section>
+</dd>
+<dt id="vastai.api.InstanceList.column_mapper"><code class="name">var <span class="ident">column_mapper</span></code></dt>
+<dd>
+<section class="desc"><p>dict() -&gt; new empty dictionary
+dict(mapping) -&gt; new dictionary initialized from a mapping object's
+(key, value) pairs
+dict(iterable) -&gt; new dictionary initialized as if via:
+d = {}
+for k, v in iterable:
+d[k] = v
+dict(**kwargs) -&gt; new dictionary initialized with the name=value pairs
+in the keyword argument list.
+For example:
+dict(one=1, two=2)</p></section>
+</dd>
+<dt id="vastai.api.InstanceList.value_formatters"><code class="name">var <span class="ident">value_formatters</span></code></dt>
+<dd>
+<section class="desc"><p>dict() -&gt; new empty dictionary
+dict(mapping) -&gt; new dictionary initialized from a mapping object's
+(key, value) pairs
+dict(iterable) -&gt; new dictionary initialized as if via:
+d = {}
+for k, v in iterable:
+d[k] = v
+dict(**kwargs) -&gt; new dictionary initialized with the name=value pairs
+in the keyword argument list.
+For example:
+dict(one=1, two=2)</p></section>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="vastai.api.InstanceList.as_df"><code class="name flex">
+<span>def <span class="ident">as_df</span></span>(<span>self, columns=None, include_columns=None, exclude_columns=None, rename_columns=True, format_values=True)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Get list as a <code>pandas.DataFrame</code></p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>columns</code></strong> :&ensp;<code>bool</code> or <code>list</code> of <code>str</code></dt>
+<dd>Include only the specified columns.
+If columns is True will show all columns. (default:
+<a title="vastai.api.InstanceList.display_columns" href="#vastai.api.InstanceList.display_columns"><code>InstanceList.display_columns</code></a>)</dd>
+<dt><strong><code>include_columns</code></strong> :&ensp;<code>list</code> of <code>str</code></dt>
+<dd>A list of additional columns names to
+include in output.</dd>
+<dt><strong><code>exclude_columns</code></strong> :&ensp;<code>list</code> of <code>str</code></dt>
+<dd>A list of columns names to exclude
+from output.</dd>
+<dt><strong><code>rename_columns</code></strong> :&ensp;<code>bool</code> or <code>dict</code> of <code>str</code></dt>
+<dd>Rename data frame columns. If
+<code>rename_columns</code> is a dict will rename with the provided mapping.
+e.g. <code>{'id':'host_id'}</code> renames col <code>id</code> to <code>host_id</code>.
+If <code>rename_columns</code> is True will use the mapping defined in
+<a title="vastai.api.InstanceList.column_mapper" href="#vastai.api.InstanceList.column_mapper"><code>InstanceList.column_mapper</code></a>.
+If <code>rename_columns</code> is False the column names will stay the same.</dd>
+<dt><strong><code>format_values</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Format values according to the string formatters
+specified in <code>instance_fields</code>.</dd>
+</dl></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def as_df(self, columns=None, include_columns=None, exclude_columns=None, 
+          rename_columns=True, format_values=True):
+    &#34;&#34;&#34; Get list as a `pandas.DataFrame`
+    Args:
+        columns (bool or list of str): Include only the specified columns. 
+            If columns is True will show all columns. (default: 
+            `InstanceList.display_columns`)
+        include_columns (list of str): A list of additional columns names to 
+            include in output.
+        exclude_columns (list of str): A list of columns names to exclude 
+            from output.
+        rename_columns (bool or dict of str): Rename data frame columns. If 
+            `rename_columns` is a dict will rename with the provided mapping. 
+            e.g. `{&#39;id&#39;:&#39;host_id&#39;}` renames col `id` to `host_id`.
+            If `rename_columns` is True will use the mapping defined in 
+            `InstanceList.column_mapper`. 
+            If `rename_columns` is False the column names will stay the same.
+        format_values (bool): Format values according to the string formatters 
+            specified in `instance_fields`.
+    &#34;&#34;&#34;
+    if columns is True:
+        columns = None # Setting DataFrame `columns=None` returns all columns.
+    elif columns is None: #Use the default, InstanceList.display_columns
+        columns = self.display_columns
+    else: 
+        columns = columns
+    if type(columns) is list and type(include_columns) is list:
+        columns = columns + include_columns
+    elif columns is not None and type(columns) is not list:
+        raise ValueError(&#34;&#39;columns&#39; should be either True, None, or a list of strings. Got &#39;%s&#39; instead.&#34;%type(columns))
+    # Remove columns in exclude_columns
+    if type(columns) is list and type(exclude_columns) is list:
+        columns = [c for c in columns if c not in exclude_columns]
+    df = pd.DataFrame(self, columns=columns)
+    if format_values:
+        for k in self.value_formatters.keys():
+            fmt = self.value_formatters[k]
+            df[k] = [ fmt[0].format(fmt[1](val) if fmt[1] is not None else val) for val in df[k] ]
+    if rename_columns is True:
+        df = df.rename(columns=self.column_mapper)
+    elif type(rename_columns) is dict:
+        df = df.rename(columns=rename_columns)
+    return df</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="vastai.api.OfferList"><code class="flex name class">
+<span>class <span class="ident">OfferList</span></span>
+<span>(</span><span>*args, **kwargs)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>A list of Offerss, returned by <a title="vastai.api.VastClient.search_offers" href="#vastai.api.VastClient.search_offers"><code>VastClient.search_offers()</code></a></p></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class OfferList(InstanceList):
+    &#34;&#34;&#34; A list of Offerss, returned by `VastClient.search_offers()`
+    &#34;&#34;&#34;
+    display_columns = [field[0] for field in displayable_fields]
+    column_mapper = { field[0]:field[1] for field in displayable_fields}
+    value_formatters = { field[0]:(field[2],field[3]) for field in displayable_fields}</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="vastai.api.InstanceList" href="#vastai.api.InstanceList">InstanceList</a></li>
+<li>builtins.list</li>
+</ul>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="vastai.api.InstanceList" href="#vastai.api.InstanceList">InstanceList</a></b></code>:
+<ul class="hlist">
+<li><code><a title="vastai.api.InstanceList.as_df" href="#vastai.api.InstanceList.as_df">as_df</a></code></li>
+<li><code><a title="vastai.api.InstanceList.column_mapper" href="#vastai.api.InstanceList.column_mapper">column_mapper</a></code></li>
+<li><code><a title="vastai.api.InstanceList.display_columns" href="#vastai.api.InstanceList.display_columns">display_columns</a></code></li>
+<li><code><a title="vastai.api.InstanceList.value_formatters" href="#vastai.api.InstanceList.value_formatters">value_formatters</a></code></li>
+</ul>
+</li>
 </ul>
 </dd>
 <dt id="vastai.api.Instance"><code class="flex name class">
@@ -742,9 +1460,9 @@ TODO: document Instance attributes</p>
         self.status = self.actual_status if hasattr(self, &#39;actual_status&#39;) else None
 
     def __repr__(self):
-        &#34;&#34;&#34; Uses `vast.display_table` for display.
+        &#34;&#34;&#34; Uses `pandas.DataTable` for display.
         &#34;&#34;&#34;
-        return _grab_display_table_out([self])
+        return InstanceList([self.__dict__()]).__repr__()
 
     def __dict__(self):
         &#34;&#34;&#34; Gets dict of serializable fields.
@@ -756,46 +1474,77 @@ TODO: document Instance attributes</p>
         &#34;&#34;&#34;
         return json.dumps(self.__dict__())
 
-    def get(self, attr, default=None):
-        &#34;&#34;&#34; Gets a specified attribute from this Instance. 
-            Used by vastai.vast.display_table.
-        Args:
-            attr (str): Instance attribute
-            default: Default value, if attribute not found. (default: None)
-        &#34;&#34;&#34;
-        return getattr(self, attr) if hasattr(self, attr) else default
-
-    def _request(self, method, json_data):
+#    def get(self, attr, default=None):
+#        &#34;&#34;&#34; Gets a specified attribute from this Instance. 
+#            Used by vastai.vast.display_table.
+#        Args:
+#            attr (str): Instance attribute
+#            default: Default value, if attribute not found. (default: None)
+#        &#34;&#34;&#34;
+#        return getattr(self, attr) if hasattr(self, attr) else default
+#
+    def _request(self, method, url_base, json_data):
         &#34;&#34;&#34; Makes http request to `&lt;api_base_url&gt;/instances/&lt;instance.id&gt;/` 
-        Params:
+        Args:
             method (str): HTTP request method.
+            url_base (str): Request URL, without api_base_url or request params. 
+                            e.g. /instances/bid_price/{id}/
             json_data (json): JSON data to send in request body.
         Raises:
             `vastai.exceptions.InstanceError`: if request doesn&#39;t return data[&#39;success&#39;]
         &#34;&#34;&#34;
         assert type(method) is str
         assert method.lower() in [&#39;get&#39;, &#39;put&#39;, &#39;post&#39;, &#39;update&#39;, &#39;delete&#39;]
-        url = self.client._apiurl(&#34;/instances/%s/&#34;%self.id)
+        url = self.client._apiurl(url_base)
         resp = requests.request(method, url, json=json_data)
         resp.raise_for_status()
         if resp.status_code == 200:
             resp_data = resp.json()
-            if resp_data[&#39;success&#39;]:
-                logging.info(json.dumps(resp_data))
-                return resp_data
-            else:
-                logging.debug(json.dumps(resp_data))
-                raise InstanceError(resp_data[&#39;msg&#39;], self.id)
+            #if resp_data[&#39;success&#39;]:
+            #    logging.info(json.dumps(resp_data))
+            #    return resp_data
+            #else:
+            #    logging.debug(json.dumps(resp_data))
+            #    raise InstanceError(resp_data[&#39;msg&#39;], self.id)
         else:
-            logging.debug(resp)
+            #logging.debug(resp)
+            print(&#34;Error:&#34;, resp)
             raise InstanceError(resp, self.id)
+        return resp_data
+
+    def get_ssh_connection_command(self, tunnel_local_port=None, tunnel_remote_port=None):
+        &#34;&#34;&#34; Convenience method to get ssh command for connecting to this machine. 
+            Optionally include params for reverse proxy ssh tunnel. (e.g. to access
+            a port behind firewall on the remote machine.
+        Args:
+            tunnel_local_port (int, optional): local port for ssh tunnel. (default: None)
+            tunnel_remote_port (int, optional): remote port for ssh tunnel. 
+                                                (default: `tunnel_local_port` or None)
+        Returns:
+            str: Ssh connection command 
+        &#34;&#34;&#34;
+        cmd = &#34;ssh root@%s -p %i -i %s&#34;%(self.ssh_host, self.ssh_port, self.client._get_ssh_key_file())
+        if tunnel_local_port:
+            cmd += &#34; -L %i:localhost:%i&#34;%(tunnel_local_port, tunnel_remote_port or tunnel_local_port)
+        return cmd
+
+
+    def change_bid(self, price):
+        &#34;&#34;&#34; Set a new bid price for an interruptible instance.
+        Args:
+            price (float): per machine bid price in $/hour
+        Raises:
+            `vastai.exceptions.InstanceError`: if request doesn&#39;t return `{&#39;success&#39;: true}`
+        &#34;&#34;&#34;
+        resp = self._request(&#39;put&#39;, &#34;/instances/bid_price/%s/&#34;%self.id, {&#34;client_id&#34;: &#34;me&#34;, &#34;price&#34;: price })
+        print(&#34;Bid changed to $%.3f/hr&#34;%price)
         
     def start(self):
         &#34;&#34;&#34; Starts this configured instance.  
         Raises:
             `vastai.exceptions.InstanceError`: if request doesn&#39;t return `{&#39;success&#39;: true}`
         &#34;&#34;&#34;
-        self._request(&#39;put&#39;,{ &#34;state&#34;: &#34;running&#34; })
+        self._request(&#39;put&#39;, &#34;/instances/%s/&#34;%self.id, { &#34;state&#34;: &#34;running&#34; })
         print(&#34;Starting instance %i.&#34;%self.id )
 
     def stop(self):
@@ -803,7 +1552,7 @@ TODO: document Instance attributes</p>
         Raises:
             `vastai.exceptions.InstanceError`: if request doesn&#39;t return `{&#39;success&#39;: true}`
         &#34;&#34;&#34;
-        self._request(&#39;put&#39;, {&#34;state&#34;: &#34;stopped&#34;})
+        self._request(&#39;put&#39;, &#34;/instances/%s/&#34;%self.id, {&#34;state&#34;: &#34;stopped&#34;})
         print(&#34;Stopping instance %i.&#34;%self.id )
 
     def destroy(self):
@@ -811,7 +1560,7 @@ TODO: document Instance attributes</p>
         Raises:
             `vastai.exceptions.InstanceError`: if request doesn&#39;t return `{&#39;success&#39;: true}`
         &#34;&#34;&#34;
-        self._request(&#39;delete&#39;,{})
+        self._request(&#39;delete&#39;, &#34;/instances/%s/&#34;%self.id, {})
         print(&#34;Destroying instance %s&#34;%self.id)
             
     def run_command(self, command_str):
@@ -824,7 +1573,7 @@ TODO: document Instance attributes</p>
         print(&#34;Connecting to %s:%i &#34;%(self.ssh_host,self.ssh_port))
         try:
             ssh_client.connect(self.ssh_host, port=int(self.ssh_port), username=&#39;root&#39;, 
-                               key_filename=self.client.get_ssh_key_file())
+                               key_filename=self.client._get_ssh_key_file())
             print(&#34;Running command &#39;%s&#39;&#34;%command_str)
             stdin, stdout, stderr = ssh_client.exec_command(command_str)
             print(stdout.read().decode(&#39;utf-8&#39;))
@@ -837,31 +1586,72 @@ TODO: document Instance attributes</p>
 </details>
 <h3>Methods</h3>
 <dl>
-<dt id="vastai.api.Instance.get"><code class="name flex">
-<span>def <span class="ident">get</span></span>(<span>self, attr, default=None)</span>
+<dt id="vastai.api.Instance.get_ssh_connection_command"><code class="name flex">
+<span>def <span class="ident">get_ssh_connection_command</span></span>(<span>self, tunnel_local_port=None, tunnel_remote_port=None)</span>
 </code></dt>
 <dd>
-<section class="desc"><p>Gets a specified attribute from this Instance.
-Used by vastai.vast.display_table.</p>
+<section class="desc"><p>Convenience method to get ssh command for connecting to this machine.
+Optionally include params for reverse proxy ssh tunnel. (e.g. to access
+a port behind firewall on the remote machine.</p>
 <h2 id="args">Args</h2>
 <dl>
-<dt><strong><code>attr</code></strong> :&ensp;<code>str</code></dt>
-<dd>Instance attribute</dd>
-<dt><strong><code>default</code></strong></dt>
-<dd>Default value, if attribute not found. (default: None)</dd>
+<dt><strong><code>tunnel_local_port</code></strong> :&ensp;<code>int</code>, optional</dt>
+<dd>local port for ssh tunnel. (default: None)</dd>
+<dt><strong><code>tunnel_remote_port</code></strong> :&ensp;<code>int</code>, optional</dt>
+<dd>remote port for ssh tunnel.
+(default: <code>tunnel_local_port</code> or None)</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>str</code></strong></dt>
+<dd>Ssh connection command</dd>
 </dl></section>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def get(self, attr, default=None):
-    &#34;&#34;&#34; Gets a specified attribute from this Instance. 
-        Used by vastai.vast.display_table.
+<pre><code class="python">def get_ssh_connection_command(self, tunnel_local_port=None, tunnel_remote_port=None):
+    &#34;&#34;&#34; Convenience method to get ssh command for connecting to this machine. 
+        Optionally include params for reverse proxy ssh tunnel. (e.g. to access
+        a port behind firewall on the remote machine.
     Args:
-        attr (str): Instance attribute
-        default: Default value, if attribute not found. (default: None)
+        tunnel_local_port (int, optional): local port for ssh tunnel. (default: None)
+        tunnel_remote_port (int, optional): remote port for ssh tunnel. 
+                                            (default: `tunnel_local_port` or None)
+    Returns:
+        str: Ssh connection command 
     &#34;&#34;&#34;
-    return getattr(self, attr) if hasattr(self, attr) else default</code></pre>
+    cmd = &#34;ssh root@%s -p %i -i %s&#34;%(self.ssh_host, self.ssh_port, self.client._get_ssh_key_file())
+    if tunnel_local_port:
+        cmd += &#34; -L %i:localhost:%i&#34;%(tunnel_local_port, tunnel_remote_port or tunnel_local_port)
+    return cmd</code></pre>
+</details>
+</dd>
+<dt id="vastai.api.Instance.change_bid"><code class="name flex">
+<span>def <span class="ident">change_bid</span></span>(<span>self, price)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Set a new bid price for an interruptible instance.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>price</code></strong> :&ensp;<code>float</code></dt>
+<dd>per machine bid price in $/hour</dd>
+</dl>
+<h2 id="raises">Raises</h2>
+<p><a title="vastai.exceptions.InstanceError" href="exceptions.html#vastai.exceptions.InstanceError"><code>InstanceError</code></a>: if request doesn't return <code>{'success': true}</code></p></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def change_bid(self, price):
+    &#34;&#34;&#34; Set a new bid price for an interruptible instance.
+    Args:
+        price (float): per machine bid price in $/hour
+    Raises:
+        `vastai.exceptions.InstanceError`: if request doesn&#39;t return `{&#39;success&#39;: true}`
+    &#34;&#34;&#34;
+    resp = self._request(&#39;put&#39;, &#34;/instances/bid_price/%s/&#34;%self.id, {&#34;client_id&#34;: &#34;me&#34;, &#34;price&#34;: price })
+    print(&#34;Bid changed to $%.3f/hr&#34;%price)</code></pre>
 </details>
 </dd>
 <dt id="vastai.api.Instance.start"><code class="name flex">
@@ -881,7 +1671,7 @@ Used by vastai.vast.display_table.</p>
     Raises:
         `vastai.exceptions.InstanceError`: if request doesn&#39;t return `{&#39;success&#39;: true}`
     &#34;&#34;&#34;
-    self._request(&#39;put&#39;,{ &#34;state&#34;: &#34;running&#34; })
+    self._request(&#39;put&#39;, &#34;/instances/%s/&#34;%self.id, { &#34;state&#34;: &#34;running&#34; })
     print(&#34;Starting instance %i.&#34;%self.id )</code></pre>
 </details>
 </dd>
@@ -901,7 +1691,7 @@ Used by vastai.vast.display_table.</p>
     Raises:
         `vastai.exceptions.InstanceError`: if request doesn&#39;t return `{&#39;success&#39;: true}`
     &#34;&#34;&#34;
-    self._request(&#39;put&#39;, {&#34;state&#34;: &#34;stopped&#34;})
+    self._request(&#39;put&#39;, &#34;/instances/%s/&#34;%self.id, {&#34;state&#34;: &#34;stopped&#34;})
     print(&#34;Stopping instance %i.&#34;%self.id )</code></pre>
 </details>
 </dd>
@@ -921,7 +1711,7 @@ Used by vastai.vast.display_table.</p>
     Raises:
         `vastai.exceptions.InstanceError`: if request doesn&#39;t return `{&#39;success&#39;: true}`
     &#34;&#34;&#34;
-    self._request(&#39;delete&#39;,{})
+    self._request(&#39;delete&#39;, &#34;/instances/%s/&#34;%self.id, {})
     print(&#34;Destroying instance %s&#34;%self.id)</code></pre>
 </details>
 </dd>
@@ -949,7 +1739,7 @@ Used by vastai.vast.display_table.</p>
     print(&#34;Connecting to %s:%i &#34;%(self.ssh_host,self.ssh_port))
     try:
         ssh_client.connect(self.ssh_host, port=int(self.ssh_port), username=&#39;root&#39;, 
-                           key_filename=self.client.get_ssh_key_file())
+                           key_filename=self.client._get_ssh_key_file())
         print(&#34;Running command &#39;%s&#39;&#34;%command_str)
         stdin, stdout, stderr = ssh_client.exec_command(command_str)
         print(stdout.read().decode(&#39;utf-8&#39;))
@@ -981,19 +1771,32 @@ Used by vastai.vast.display_table.</p>
 <ul>
 <li>
 <h4><code><a title="vastai.api.VastClient" href="#vastai.api.VastClient">VastClient</a></code></h4>
-<ul class="">
+<ul class="two-column">
 <li><code><a title="vastai.api.VastClient.authenticate" href="#vastai.api.VastClient.authenticate">authenticate</a></code></li>
+<li><code><a title="vastai.api.VastClient.create_ssh_key" href="#vastai.api.VastClient.create_ssh_key">create_ssh_key</a></code></li>
 <li><code><a title="vastai.api.VastClient.get_instances" href="#vastai.api.VastClient.get_instances">get_instances</a></code></li>
 <li><code><a title="vastai.api.VastClient.get_instance" href="#vastai.api.VastClient.get_instance">get_instance</a></code></li>
+<li><code><a title="vastai.api.VastClient.create_instance" href="#vastai.api.VastClient.create_instance">create_instance</a></code></li>
+<li><code><a title="vastai.api.VastClient.search_offers" href="#vastai.api.VastClient.search_offers">search_offers</a></code></li>
 </ul>
 </li>
 <li>
 <h4><code><a title="vastai.api.InstanceList" href="#vastai.api.InstanceList">InstanceList</a></code></h4>
+<ul class="">
+<li><code><a title="vastai.api.InstanceList.as_df" href="#vastai.api.InstanceList.as_df">as_df</a></code></li>
+<li><code><a title="vastai.api.InstanceList.display_columns" href="#vastai.api.InstanceList.display_columns">display_columns</a></code></li>
+<li><code><a title="vastai.api.InstanceList.column_mapper" href="#vastai.api.InstanceList.column_mapper">column_mapper</a></code></li>
+<li><code><a title="vastai.api.InstanceList.value_formatters" href="#vastai.api.InstanceList.value_formatters">value_formatters</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="vastai.api.OfferList" href="#vastai.api.OfferList">OfferList</a></code></h4>
 </li>
 <li>
 <h4><code><a title="vastai.api.Instance" href="#vastai.api.Instance">Instance</a></code></h4>
 <ul class="">
-<li><code><a title="vastai.api.Instance.get" href="#vastai.api.Instance.get">get</a></code></li>
+<li><code><a title="vastai.api.Instance.get_ssh_connection_command" href="#vastai.api.Instance.get_ssh_connection_command">get_ssh_connection_command</a></code></li>
+<li><code><a title="vastai.api.Instance.change_bid" href="#vastai.api.Instance.change_bid">change_bid</a></code></li>
 <li><code><a title="vastai.api.Instance.start" href="#vastai.api.Instance.start">start</a></code></li>
 <li><code><a title="vastai.api.Instance.stop" href="#vastai.api.Instance.stop">stop</a></code></li>
 <li><code><a title="vastai.api.Instance.destroy" href="#vastai.api.Instance.destroy">destroy</a></code></li>

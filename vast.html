@@ -311,7 +311,7 @@ def parse_query(query_str, res=None):
         &#34;disk_bw&#34;,
         &#34;disk_space&#34;,
         &#34;dlperf&#34;,
-        &#34;dlperf_per_dphtotal&#34;
+        &#34;dlperf_per_dphtotal&#34;,
         &#34;dph_total&#34;,
         &#34;duration&#34;,
         &#34;external&#34;,
@@ -352,7 +352,6 @@ def parse_query(query_str, res=None):
         
         if field in field_alias:
             field = field_alias[field];
-            
         
         if not field in fields:
             print(&#34;Warning: Unrecognized field: {}, see list of recognized fields.&#34;.format(field), file=sys.stderr);
@@ -415,8 +414,9 @@ def display_table(rows, fields):
         print(&#34;  &#34;.join(out))
 
 @parser.command(
-    argument(&#34;-t&#34;, &#34;--type&#34;, default=&#34;on-demand&#34;, help=&#34;whether to show `interruptible` or `on-demand` offers. default: on-demand&#34;),
-    argument(&#34;-i&#34;, &#34;--interruptible&#34;, dest=&#34;type&#34;, const=&#34;interruptible&#34;, action=&#34;store_const&#34;, help=&#34;Alias for --type=interruptible&#34;),
+    argument(&#34;-t&#34;, &#34;--type&#34;, default=&#34;on-demand&#34;, help=&#34;whether to show `bid`(interruptible) or `on-demand` offers. default: on-demand&#34;),
+    argument(&#34;-i&#34;, &#34;--interruptible&#34;, dest=&#34;type&#34;, const=&#34;bid&#34;, action=&#34;store_const&#34;, help=&#34;Alias for --type=bid&#34;),
+    argument(&#34;-b&#34;, &#34;--bid&#34;, dest=&#34;type&#34;, const=&#34;bid&#34;, action=&#34;store_const&#34;, help=&#34;Alias for --type=bid&#34;),
     argument(&#34;-d&#34;, &#34;--on-demand&#34;, dest=&#34;type&#34;, const=&#34;on-demand&#34;, action=&#34;store_const&#34;, help=&#34;Alias for --type=on-demand&#34;),
     argument(&#34;-n&#34;, &#34;--no-default&#34;, action=&#34;store_true&#34;, help=&#34;Disable default query&#34;),
     argument(&#34;--disable-bundling&#34;, action=&#34;store_true&#34;, help=&#34;Show identical offers. This request is more heavily rate limited.&#34;),
@@ -931,6 +931,7 @@ def create__instance(args):
         price (float): per machine bid price in $/hour
         disk (float): size of local disk partition in GB
         label (str): label to set on the instance
+        image (str): Docker container image to launch
         onstart (str): filename to use as onstart script
         onstart_cmd (str): contents of onstart script as single argument
         jupyter (bool): Launch as a jupyter instance instead of an ssh instance.
@@ -980,6 +981,24 @@ def create__instance(args):
         &#34;create_from&#34;: args.create_from,
         &#34;force&#34;: args.force
     })
+    print(&#34;Create Instance request:&#34;, url)
+    print(json.dumps({
+        &#34;client_id&#34;: &#34;me&#34;,
+        &#34;image&#34;: args.image,
+        &#34;args&#34;:  args.args,
+        &#34;price&#34;: args.price,
+        &#34;disk&#34;:  args.disk,
+        &#34;label&#34;: args.label,
+        &#34;extra&#34;: args.extra,
+        &#34;onstart&#34;: args.onstart_cmd,
+        &#34;runtype&#34;: runtype,
+        &#34;python_utf8&#34;: args.python_utf8,
+        &#34;lang_utf8&#34;: args.lang_utf8,
+        &#34;use_jupyter_lab&#34;: args.jupyter_lab,
+        &#34;jupyter_dir&#34;: args.jupyter_dir,
+        &#34;create_from&#34;: args.create_from,
+        &#34;force&#34;: args.force
+    }))
     r.raise_for_status()
     if args.raw:
         print(json.dumps(r.json(), indent=1))
@@ -1428,7 +1447,7 @@ if __name__ == &#34;__main__&#34;:
         &#34;disk_bw&#34;,
         &#34;disk_space&#34;,
         &#34;dlperf&#34;,
-        &#34;dlperf_per_dphtotal&#34;
+        &#34;dlperf_per_dphtotal&#34;,
         &#34;dph_total&#34;,
         &#34;duration&#34;,
         &#34;external&#34;,
@@ -1469,7 +1488,6 @@ if __name__ == &#34;__main__&#34;:
         
         if field in field_alias:
             field = field_alias[field];
-            
         
         if not field in fields:
             print(&#34;Warning: Unrecognized field: {}, see list of recognized fields.&#34;.format(field), file=sys.stderr);
@@ -1583,8 +1601,9 @@ default='score-'</code></dd>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@parser.command(
-    argument(&#34;-t&#34;, &#34;--type&#34;, default=&#34;on-demand&#34;, help=&#34;whether to show `interruptible` or `on-demand` offers. default: on-demand&#34;),
-    argument(&#34;-i&#34;, &#34;--interruptible&#34;, dest=&#34;type&#34;, const=&#34;interruptible&#34;, action=&#34;store_const&#34;, help=&#34;Alias for --type=interruptible&#34;),
+    argument(&#34;-t&#34;, &#34;--type&#34;, default=&#34;on-demand&#34;, help=&#34;whether to show `bid`(interruptible) or `on-demand` offers. default: on-demand&#34;),
+    argument(&#34;-i&#34;, &#34;--interruptible&#34;, dest=&#34;type&#34;, const=&#34;bid&#34;, action=&#34;store_const&#34;, help=&#34;Alias for --type=bid&#34;),
+    argument(&#34;-b&#34;, &#34;--bid&#34;, dest=&#34;type&#34;, const=&#34;bid&#34;, action=&#34;store_const&#34;, help=&#34;Alias for --type=bid&#34;),
     argument(&#34;-d&#34;, &#34;--on-demand&#34;, dest=&#34;type&#34;, const=&#34;on-demand&#34;, action=&#34;store_const&#34;, help=&#34;Alias for --type=on-demand&#34;),
     argument(&#34;-n&#34;, &#34;--no-default&#34;, action=&#34;store_true&#34;, help=&#34;Disable default query&#34;),
     argument(&#34;--disable-bundling&#34;, action=&#34;store_true&#34;, help=&#34;Show identical offers. This request is more heavily rate limited.&#34;),
@@ -2302,6 +2321,8 @@ Expects <code>args</code> to be an object with the following attributes:</p>
 <dd>size of local disk partition in GB</dd>
 <dt><strong><code>label</code></strong> :&ensp;<code>str</code></dt>
 <dd>label to set on the instance</dd>
+<dt><strong><code>image</code></strong> :&ensp;<code>str</code></dt>
+<dd>Docker container image to launch</dd>
 <dt><strong><code>onstart</code></strong> :&ensp;<code>str</code></dt>
 <dd>filename to use as onstart script</dd>
 <dt><strong><code>onstart_cmd</code></strong> :&ensp;<code>str</code></dt>
@@ -2362,6 +2383,7 @@ def create__instance(args):
         price (float): per machine bid price in $/hour
         disk (float): size of local disk partition in GB
         label (str): label to set on the instance
+        image (str): Docker container image to launch
         onstart (str): filename to use as onstart script
         onstart_cmd (str): contents of onstart script as single argument
         jupyter (bool): Launch as a jupyter instance instead of an ssh instance.
@@ -2411,6 +2433,24 @@ def create__instance(args):
         &#34;create_from&#34;: args.create_from,
         &#34;force&#34;: args.force
     })
+    print(&#34;Create Instance request:&#34;, url)
+    print(json.dumps({
+        &#34;client_id&#34;: &#34;me&#34;,
+        &#34;image&#34;: args.image,
+        &#34;args&#34;:  args.args,
+        &#34;price&#34;: args.price,
+        &#34;disk&#34;:  args.disk,
+        &#34;label&#34;: args.label,
+        &#34;extra&#34;: args.extra,
+        &#34;onstart&#34;: args.onstart_cmd,
+        &#34;runtype&#34;: runtype,
+        &#34;python_utf8&#34;: args.python_utf8,
+        &#34;lang_utf8&#34;: args.lang_utf8,
+        &#34;use_jupyter_lab&#34;: args.jupyter_lab,
+        &#34;jupyter_dir&#34;: args.jupyter_dir,
+        &#34;create_from&#34;: args.create_from,
+        &#34;force&#34;: args.force
+    }))
     r.raise_for_status()
     if args.raw:
         print(json.dumps(r.json(), indent=1))
