@@ -5,6 +5,7 @@ from requests_mock.exceptions import NoMockAddress
 import os
 import sys, io
 from time import sleep
+import json
 
 from vastai import vast
 from vastai.api import VastClient
@@ -55,9 +56,23 @@ def _compare_requests(requests_mock, vast_func, vast_args, vast_client_method, r
     requests_mock.request(last_req.method, last_req.url, json=response_json or {})
     result = vast_client_method(**kwargs)
 
+    print("vastai requested:    ", requests_mock.last_request.method, requests_mock.last_request.url)
+    print("       request body: ", requests_mock.last_request.text)
+
     assert requests_mock.last_request.url == last_req.url, "Request url should be the same as vast.py."
     assert requests_mock.last_request.method == last_req.method, "Request method should be the same as vast.py."
-    assert requests_mock.last_request.text == last_req.text, "Request text should be the same as vast.py."
+    #assert requests_mock.last_request.text == last_req.text, "Request text should be the same as vast.py."
+    if requests_mock.last_request.text is not None and last_req.text is not None:
+        data0 = json.loads(last_req.text)
+        data1 = json.loads(requests_mock.last_request.text)
+        for attr in data0:
+            if data0[attr] not in [False, None]:
+                assert data0[attr] == data1[attr], "'%s' attributes should match"%attr
+        for attr in data1:
+            if data1[attr] not in [False, None]:
+                assert data1[attr] == data0[attr], "'%s' attributes should match"%attr
+    else:
+        assert requests_mock.last_request.text == last_req.text, "Request text should be the same as vast.py."
 
     return result
 
@@ -110,6 +125,12 @@ def test_login(requests_mock, fs):
         assert f.read() == client.api_key, "API key should match the key saved to disk."
 
 
+def test_instance_change_bid(vast_client, requests_mock, instance):
+    price = .025
+    args = VastArgs(id=instance.id, price=price)
+    resp = _compare_requests(requests_mock, vast.change__bid, args, instance.change_bid, price=price,
+                             response_json={"success": True})
+
 def test_instance_start(vast_client, requests_mock, instance):
     args = VastArgs(id=instance.id)
     resp = _compare_requests(requests_mock, vast.start__instance, args, instance.start, 
@@ -128,10 +149,18 @@ def test_instance_destroy(vast_client, requests_mock, instance):
                              response_json={"success": True})
 
 
-#def test_instance_stop(vast_client, requests_mock, instance):
-#    args = VastArgs(id=instance.id)
-#    resp = _compare_requests(requests_mock, vast.stop__instance, args, instance.stop,
-#                             response_json={"success": True})
+def test_instance_create(vast_client, requests_mock, instance, fs):
+    req_args = dict(offer_id=395955, image='tensorflow/tensorflow:1.14.0-gpu-py3-jupyter', 
+                    price=.04, disk=1, label='testing', raw=True )
+    fs.create_file("onstart.sh", contents="#!/usr/bin/sh \n"\
+                "apt-get install -y vim git; pip install --upgrade pip; touch /root/no_auto_tmux")
+    args = VastArgs(id=req_args['offer_id'], image=req_args['image'], price=req_args['price'], disk=req_args['disk'], 
+                    label=req_args['label'], jupyter=False, onstart=None, args=None, jupyter_dir=None, jupyter_lab=None, 
+                    extra=None, python_utf8=None, lang_utf8=None, create_from=None, force=None, raw=True,
+                    onstart_cmd="#!/usr/bin/sh \napt-get install -y vim git; pip install --upgrade pip; touch /root/no_auto_tmux")
+    
+    resp = _compare_requests(requests_mock, vast.create__instance, args, vast_client.create_instance,
+                             response_json=stubs.create_instance_resp, onstart="onstart.sh", **req_args)
 
 
 

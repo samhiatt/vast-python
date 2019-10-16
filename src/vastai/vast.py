@@ -285,7 +285,7 @@ def parse_query(query_str, res=None):
         "disk_bw",
         "disk_space",
         "dlperf",
-        "dlperf_per_dphtotal"
+        "dlperf_per_dphtotal",
         "dph_total",
         "duration",
         "external",
@@ -326,7 +326,6 @@ def parse_query(query_str, res=None):
         
         if field in field_alias:
             field = field_alias[field];
-            
         
         if not field in fields:
             print("Warning: Unrecognized field: {}, see list of recognized fields.".format(field), file=sys.stderr);
@@ -389,8 +388,9 @@ def display_table(rows, fields):
         print("  ".join(out))
 
 @parser.command(
-    argument("-t", "--type", default="on-demand", help="whether to show `interruptible` or `on-demand` offers. default: on-demand"),
-    argument("-i", "--interruptible", dest="type", const="interruptible", action="store_const", help="Alias for --type=interruptible"),
+    argument("-t", "--type", default="on-demand", help="whether to show `bid`(interruptible) or `on-demand` offers. default: on-demand"),
+    argument("-i", "--interruptible", dest="type", const="bid", action="store_const", help="Alias for --type=bid"),
+    argument("-b", "--bid", dest="type", const="bid", action="store_const", help="Alias for --type=bid"),
     argument("-d", "--on-demand", dest="type", const="on-demand", action="store_const", help="Alias for --type=on-demand"),
     argument("-n", "--no-default", action="store_true", help="Disable default query"),
     argument("--disable-bundling", action="store_true", help="Show identical offers. This request is more heavily rate limited."),
@@ -905,6 +905,7 @@ def create__instance(args):
         price (float): per machine bid price in $/hour
         disk (float): size of local disk partition in GB
         label (str): label to set on the instance
+        image (str): Docker container image to launch
         onstart (str): filename to use as onstart script
         onstart_cmd (str): contents of onstart script as single argument
         jupyter (bool): Launch as a jupyter instance instead of an ssh instance.
@@ -954,6 +955,24 @@ def create__instance(args):
         "create_from": args.create_from,
         "force": args.force
     })
+    print("Create Instance request:", url)
+    print(json.dumps({
+        "client_id": "me",
+        "image": args.image,
+        "args":  args.args,
+        "price": args.price,
+        "disk":  args.disk,
+        "label": args.label,
+        "extra": args.extra,
+        "onstart": args.onstart_cmd,
+        "runtype": runtype,
+        "python_utf8": args.python_utf8,
+        "lang_utf8": args.lang_utf8,
+        "use_jupyter_lab": args.jupyter_lab,
+        "jupyter_dir": args.jupyter_dir,
+        "create_from": args.create_from,
+        "force": args.force
+    }))
     r.raise_for_status()
     if args.raw:
         print(json.dumps(r.json(), indent=1))

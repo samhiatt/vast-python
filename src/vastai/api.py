@@ -1,4 +1,4 @@
-import logging
+#import logging
 import getpass
 import os
 import requests
@@ -8,9 +8,11 @@ from urllib.parse import quote_plus
 from collections import namedtuple
 from paramiko.client import SSHClient, AutoAddPolicy
 from paramiko.ssh_exception import NoValidConnectionsError
+from paramiko import RSAKey
+import sys
 from vastai.exceptions import InstanceError, Unauthorized, PrivateSshKeyNotFound
-from vastai.vast import display_table, displayable_fields
-import sys, io
+from vastai.vast import displayable_fields, instance_fields, parse_query
+import pandas as pd
 
 default_api_key_file = os.path.join('~','.vast_api_key')
 default_ssh_key_dir = os.path.join('~','.ssh')
@@ -123,16 +125,35 @@ class VastClient:
         """
         if self.ssh_key is None:
             raise(Unauthorized())
-        for file in os.listdir(key_dir):
-            pub_key_file = os.path.join(sekf.ssh_key_dir, file+'.pub')
+        for file in os.listdir(self.ssh_key_dir):
+            pub_key_file = os.path.join(self.ssh_key_dir, file+'.pub')
             # print (self.ssh_key)
             if os.path.exists(pub_key_file):
                 with open(pub_key_file) as f:
-                    # k = f.read()
-                    # print(k)
                     if f.read().strip()==self.ssh_key.strip(): 
                         return pub_key_file[:-4]
         raise PrivateSshKeyNotFound(key_dir, self.ssh_key)
+
+    def create_ssh_key(self, name='vastai'):
+        """ Generate a new ssh RSA token that can be used for connecting to remote instances.
+        Args: 
+            name (str): Name for the RSA key pair. Public key will be named 
+                        '{{self.ssh_key_dir}}/{{name}}.pub'. (default: 'vastai')
+        Returns:
+            str: Path to new public ssh key file.
+        """
+        if not os.path.isdir(self.ssh_key_dir):
+            print("Creating new directory for ssh key file: %s"%self.ssh_key_dir)
+            os.path.mkdir(self.ssh_key_dir)
+        key = RSAKey.generate(4096)
+        public_key_file = os.path.join(self.ssh_key_dir, "%s.pub"%name)
+        private_key_file = os.path.join(self.ssh_key_dir, name)
+        print("Saving RSA key pair: %s\n    Private key: %s"%(public_key_file, private_key_file))
+        with open(public_key_file,'w') as f:
+            f.write(key.get_base64())
+        key.write_private_key_file(private_key_file)
+        return public_key_file
+
         
     def get_instances(self):
         """ Retrieves a list of user's configured instances.
@@ -143,8 +164,8 @@ class VastClient:
         """
         if self.api_key is None: raise ApiKeyNotSet()
         
-        req_url = self._apiurl("/instances", owner="me");
-        r = requests.get(req_url);
+        req_url = self._apiurl("/instances", owner="me")
+        r = requests.get(req_url)
         r.raise_for_status()
         # print(json.dumps(r.json()))
         instances = r.json()["instances"]
@@ -162,6 +183,102 @@ class VastClient:
         self.get_instances()
         idx = self.instance_ids.index(id)
         return self.instances[idx] if idx >= 0 else None
+
+    def create_instance(self, offer_id, price=None, disk=1, image="tensorflow/tensorflow:nightly-gpu-py3", 
+                        label=None, onstart=None, onstart_cmd=None, jupyter=False, jupyter_dir=None, jupyter_lab=False,
+                        lang_utf8=False, python_utf8=False, create_from=None, force=False, raw=True):
+        """ Create a new instance given an offer id. 
+        Args:
+            offer_id (int): Id of offer to launch
+            price (float): Per machine bid price in $/h
+            disk (float): Size of local disk partition in GB
+            image (str): Docker container image to launch
+            label (str): Label to set on the instance
+            onstart (str): Local filename pointing to file to upload and use as onstart script.
+            onstart_cmd (str): Contents of onstart script as single argument
+            jupyter (bool): Launch as a jupyter instance instead of an ssh instance. (default: False)
+            jupyter_dir (str): For runtype 'jupyter', directory in instance to use to launch jupyter. 
+                               Defaults to image's working directory.
+            jupyter_lab (bool): Launch instance with jupyter lab (default: False)
+            lang_urf8 (bool): Workaround for images with locale problems: install and generate locales 
+                              before instance launch, and set locale to C.UTF-8. (default: False)
+            python_utf8 (bool): Workaround for images with locale problems: set python's locale to C.UTF-8.
+            create_from (str): Existing instance id to use as basis for new instance. Instance configuration 
+                               should usually be identical, as only the difference from the base image is copied.
+        Raises:
+            `vastai.exceptions.ApiKeyNotSet`: if `client.api_key` isn't set. 
+        """
+        if self.api_key is None: raise ApiKeyNotSet()
+        if onstart is not None:
+            #if not os.path.isfile(onstart):
+            #    raise FileNotFoundError
+            with open(onstart, "r") as reader:
+                onstart_cmd = reader.read()
+
+        req_url = self._apiurl("/asks/%i/"%offer_id)
+        req_json = dict( client_id="me", image=image, price=price, disk=disk, label=label, 
+                         onstart=onstart_cmd, runtype="jupyter" if jupyter else "ssh", 
+                         python_utf8=python_utf8, lang_utf8=lang_utf8,
+                         use_jupyter_lab=jupyter_lab, jupyter_dir=jupyter_dir,
+                         create_from=create_from, force=force )
+        print(req_url, '\n', json.dumps(req_json))
+        resp = requests.put(req_url, json=req_json)
+        resp.raise_for_status()
+        print(json.dumps(resp.json()))
+        resp_data = resp.json()
+        # TODO: Add a listener for running status.
+        return resp_data
+
+    def search_offers(self, sort_order='score-', query=None, instance_type='on-demand', 
+                      no_default=True, disable_bundling=False ):
+        """ Search for available machines to bid on. 
+        Args:
+            order (str): Comma-separated list of fields to sort on. Postfix field with `-` to sort descending.
+                         example: `num_gpus,total_flops-` (default='score-')
+            instance_type (str): whether to show `bid`(interruptible) or `on-demand` offers. (default: `on-demand`) 
+            query (str): Query to search for. default: 'external=false rentable=true verified=true
+            storage (float): amount of storage to use for pricing, in GiB. (default: 5.0GiB)
+            disable_bundling (bool): Show identical offers. This request is more heavily rate limited. (default: False)
+        Raises:
+            `vastai.exceptions.ApiKeyNotSet`: if `client.api_key` isn't set. 
+        Returns: 
+            OfferList: A list of offers
+        """
+        if self.api_key is None: raise ApiKeyNotSet()
+        
+        field_alias = dict(cuda_vers = "cuda_max_good", reliability = "reliability2", dlperf_usd = "dlperf_per_dphtotal",
+                           dph = "dph_total", flops_usd = "flops_per_dphtotal" )
+        if no_default:
+            query_args = {}
+        else:
+            query_args = { "verified":{"eq":True}, "external":{"eq":False}, "rentable":{"eq":True} }
+
+        if query is not None:
+            query_args = parse_query(query, query_args)
+        #for k,q in query_args.items():
+        #    print("%10s: %s"%(k, q));
+        order = []
+        for name in sort_order.split(","):
+            name = name.strip()
+            if not name: continue
+            direction = "asc"
+            if name.strip("-") != name:
+                direction = "desc"
+            field = name.strip("-");
+            if field in field_alias:
+                field = field_alias[field];
+            order.append([field, direction])
+
+        query_args["order"] = order
+        query_args["type"]  = instance_type
+        if disable_bundling:
+            query_args["disable_bundling"] = True
+
+        req_url = self._apiurl("/bundles", q=query_args)
+        resp = requests.get(req_url);
+        resp.raise_for_status()
+        offer_list = OfferList(resp.json()["offers"])
+        return offer_list
         
     def _apiurl(self, subpath, **kwargs):
         query_args = {}
@@ -177,23 +294,69 @@ class VastClient:
             return api_base_url + subpath
 
 
-def _grab_display_table_out(instances):
-    output = io.StringIO()
-    sys.stdout = output
-    display_table(instances, displayable_fields)
-    sys.stdout = sys.__stdout__
-    result = output.getvalue()
-    return result    
-
 class InstanceList(list):
     """ A list of `Instance`s, returned by `VastClient.get_instances()`
     """
+    display_columns = [field[0] for field in instance_fields]
+    column_mapper = { field[0]:field[1] for field in instance_fields}
+    value_formatters = { field[0]:(field[2],field[3]) for field in instance_fields}
+    def as_df(self, columns=None, include_columns=None, exclude_columns=None, 
+              rename_columns=True, format_values=True):
+        """ Get list as a `pandas.DataFrame`
+        Args:
+            columns (bool or list of str): Include only the specified columns. 
+                If columns is True will show all columns. (default: 
+                `InstanceList.display_columns`)
+            include_columns (list of str): A list of additional columns names to 
+                include in output.
+            exclude_columns (list of str): A list of columns names to exclude 
+                from output.
+            rename_columns (bool or dict of str): Rename data frame columns. If 
+                `rename_columns` is a dict will rename with the provided mapping. 
+                e.g. `{'id':'host_id'}` renames col `id` to `host_id`.
+                If `rename_columns` is True will use the mapping defined in 
+                `InstanceList.column_mapper`. 
+                If `rename_columns` is False the column names will stay the same.
+            format_values (bool): Format values according to the string formatters 
+                specified in `instance_fields`.
+        """
+        if columns is True:
+            columns = None # Setting DataFrame `columns=None` returns all columns.
+        elif columns is None: #Use the default, InstanceList.display_columns
+            columns = self.display_columns
+        else: 
+            columns = columns
+        if type(columns) is list and type(include_columns) is list:
+            columns = columns + include_columns
+        elif columns is not None and type(columns) is not list:
+            raise ValueError("'columns' should be either True, None, or a list of strings. Got '%s' instead."%type(columns))
+        # Remove columns in exclude_columns
+        if type(columns) is list and type(exclude_columns) is list:
+            columns = [c for c in columns if c not in exclude_columns]
+        df = pd.DataFrame(self, columns=columns)
+        if format_values:
+            for k in self.value_formatters.keys():
+                fmt = self.value_formatters[k]
+                df[k] = [ fmt[0].format(fmt[1](val) if fmt[1] is not None else val) for val in df[k] ]
+        if rename_columns is True:
+            df = df.rename(columns=self.column_mapper)
+        elif type(rename_columns) is dict:
+            df = df.rename(columns=rename_columns)
+        return df
+
     def __dict__(self):
         return {i.id:i.__dict__() for i in self}
     def __json__(self):
         return json.dumps([i.__dict__() for i in self])
     def __repr__(self):
-        return _grab_display_table_out(self)
+        return self.as_df().to_string(columns=self.column_mapper.values())
+        
+class OfferList(InstanceList):
+    """ A list of Offerss, returned by `VastClient.search_offers()`
+    """
+    display_columns = [field[0] for field in displayable_fields]
+    column_mapper = { field[0]:field[1] for field in displayable_fields}
+    value_formatters = { field[0]:(field[2],field[3]) for field in displayable_fields}
 
 class Instance:
     def __init__(self, client, **kwargs):
@@ -211,9 +374,9 @@ class Instance:
         self.status = self.actual_status if hasattr(self, 'actual_status') else None
 
     def __repr__(self):
-        """ Uses `vast.display_table` for display.
+        """ Uses `pandas.DataTable` for display.
         """
-        return _grab_display_table_out([self])
+        return InstanceList([self.__dict__()]).__repr__()
 
     def __dict__(self):
         """ Gets dict of serializable fields.
@@ -225,46 +388,77 @@ class Instance:
         """
         return json.dumps(self.__dict__())
 
-    def get(self, attr, default=None):
-        """ Gets a specified attribute from this Instance. 
-            Used by vastai.vast.display_table.
-        Args:
-            attr (str): Instance attribute
-            default: Default value, if attribute not found. (default: None)
-        """
-        return getattr(self, attr) if hasattr(self, attr) else default
-
-    def _request(self, method, json_data):
+#    def get(self, attr, default=None):
+#        """ Gets a specified attribute from this Instance. 
+#            Used by vastai.vast.display_table.
+#        Args:
+#            attr (str): Instance attribute
+#            default: Default value, if attribute not found. (default: None)
+#        """
+#        return getattr(self, attr) if hasattr(self, attr) else default
+#
+    def _request(self, method, url_base, json_data):
         """ Makes http request to `<api_base_url>/instances/<instance.id>/` 
-        Params:
+        Args:
             method (str): HTTP request method.
+            url_base (str): Request URL, without api_base_url or request params. 
+                            e.g. /instances/bid_price/{id}/
             json_data (json): JSON data to send in request body.
         Raises:
             `vastai.exceptions.InstanceError`: if request doesn't return data['success']
         """
         assert type(method) is str
         assert method.lower() in ['get', 'put', 'post', 'update', 'delete']
-        url = self.client._apiurl("/instances/%s/"%self.id)
+        url = self.client._apiurl(url_base)
         resp = requests.request(method, url, json=json_data)
         resp.raise_for_status()
         if resp.status_code == 200:
             resp_data = resp.json()
-            if resp_data['success']:
-                logging.info(json.dumps(resp_data))
-                return resp_data
-            else:
-                logging.debug(json.dumps(resp_data))
-                raise InstanceError(resp_data['msg'], self.id)
+            #if resp_data['success']:
+            #    logging.info(json.dumps(resp_data))
+            #    return resp_data
+            #else:
+            #    logging.debug(json.dumps(resp_data))
+            #    raise InstanceError(resp_data['msg'], self.id)
         else:
-            logging.debug(resp)
+            #logging.debug(resp)
+            print("Error:", resp)
             raise InstanceError(resp, self.id)
+        return resp_data
+
+    def get_ssh_connection_command(self, tunnel_local_port=None, tunnel_remote_port=None):
+        """ Convenience method to get ssh command for connecting to this machine. 
+            Optionally include params for reverse proxy ssh tunnel. (e.g. to access
+            a port behind firewall on the remote machine.
+        Args:
+            tunnel_local_port (int, optional): local port for ssh tunnel. (default: None)
+            tunnel_remote_port (int, optional): remote port for ssh tunnel. 
+                                                (default: `tunnel_local_port` or None)
+        Returns:
+            str: Ssh connection command 
+        """
+        cmd = "ssh root@%s -p %i -i %s"%(self.ssh_host, self.ssh_port, self.client._get_ssh_key_file())
+        if tunnel_local_port:
+            cmd += " -L %i:localhost:%i"%(tunnel_local_port, tunnel_remote_port or tunnel_local_port)
+        return cmd
+
+
+    def change_bid(self, price):
+        """ Set a new bid price for an interruptible instance.
+        Args:
+            price (float): per machine bid price in $/hour
+        Raises:
+            `vastai.exceptions.InstanceError`: if request doesn't return `{'success': true}`
+        """
+        resp = self._request('put', "/instances/bid_price/%s/"%self.id, {"client_id": "me", "price": price })
+        print("Bid changed to $%.3f/hr"%price)
         
     def start(self):
         """ Starts this configured instance.  
         Raises:
             `vastai.exceptions.InstanceError`: if request doesn't return `{'success': true}`
         """
-        self._request('put',{ "state": "running" })
+        self._request('put', "/instances/%s/"%self.id, { "state": "running" })
         print("Starting instance %i."%self.id )
 
     def stop(self):
@@ -272,7 +466,7 @@ class Instance:
         Raises:
             `vastai.exceptions.InstanceError`: if request doesn't return `{'success': true}`
         """
-        self._request('put', {"state": "stopped"})
+        self._request('put', "/instances/%s/"%self.id, {"state": "stopped"})
         print("Stopping instance %i."%self.id )
 
     def destroy(self):
@@ -280,7 +474,7 @@ class Instance:
         Raises:
             `vastai.exceptions.InstanceError`: if request doesn't return `{'success': true}`
         """
-        self._request('delete',{})
+        self._request('delete', "/instances/%s/"%self.id, {})
         print("Destroying instance %s"%self.id)
             
     def run_command(self, command_str):
@@ -293,7 +487,7 @@ class Instance:
         print("Connecting to %s:%i "%(self.ssh_host,self.ssh_port))
         try:
             ssh_client.connect(self.ssh_host, port=int(self.ssh_port), username='root', 
-                               key_filename=self.client.get_ssh_key_file())
+                               key_filename=self.client._get_ssh_key_file())
             print("Running command '%s'"%command_str)
             stdin, stdout, stderr = ssh_client.exec_command(command_str)
             print(stdout.read().decode('utf-8'))

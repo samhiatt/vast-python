@@ -6,3 +6,10 @@ user_json = json.loads("""{"can_pay": false, "id": 1234, "api_key": "asupersecre
 
 instance_repr = "ID      CUDA  Num  Model        PCIE BW  vCPUs   RAM  Storage  $/hr    DLPerf  DLP/$  Net up  Net down  R     Max Days\n384792  10.0  2 x  GTX 1080 Ti  3.1      8.0    16.0  1        0.2202  -       -      23.7    68.7      99.6  23.3    "
 
+# ./vast.py create instance 395017 --price .03 --disk 1 --image "tensorflow/tensorflow:nightly-gpu-py3" --label testing123 --onstart-cmd "apt-get install -y vim git; pip install --upgrade pip; touch /root/no_auto_tmux" --lang-utf8 --python-utf8  --raw
+create_instance_resp = """{
+ "success": true,
+ "new_contract": 396638
+}"""
+
+
