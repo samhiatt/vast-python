@@ -2,9 +2,9 @@ language: python
 python: 
   - 3.5
   - 3.6
-install: "pip install -r requirements.txt"
+install: "pip install -r requirements_dev.txt"
 script: "python setup.py test"
-before_deploy: "pip install .[docs]; pdoc --config sort_identifiers=False --html src/vastai "
+before_deploy: "pdoc --config sort_identifiers=False --html src/vastai "
 deploy:
   provider: pages
   skip_cleanup: true
