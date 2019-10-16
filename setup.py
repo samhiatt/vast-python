@@ -1,5 +1,7 @@
 from setuptools import setup, find_packages
 
+test_deps = [ 'pytest==5.2.1', 'requests-mock==1.7.0', 'pyfakefs==3.6.1', ]
+
 with open("README.md") as f:
   long_description = f.read()
 
@@ -15,11 +17,11 @@ setup(
     #entry_points = {
     #    'console_scripts':['foobar=vastai.foobar:main'],
     #},
-    #source_dir = 'src/vastai',
-    install_requires = [ 'paramiko' ],
-    tests_require = [ 'pytest', 'requests-mock', 'pyfakefs' ],
+    install_requires = [ 'paramiko', 'pandas' ],
+    tests_require = test_deps,
     extras_require = {
         'docs': ['pdoc3'],
+        'tests': test_deps,
     },
     setup_requires = [ 'pytest-runner>=2.0,<3dev' ],
     author = "Sam Hiatt",
