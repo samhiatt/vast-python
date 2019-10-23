@@ -3,9 +3,9 @@ python:
   - 3.5
   - 3.6
   - 3.7
-install: "pipenv install -d"
+install: "pipenv install"
 script: "python setup.py test"
-before_deploy: "pdoc --config sort_identifiers=False --html src/vastai "
+before_deploy: "pdoc3 --config sort_identifiers=False --html src/vastai "
 deploy:
   provider: pages
   skip_cleanup: true

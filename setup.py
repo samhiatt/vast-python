@@ -11,7 +11,7 @@ setup(
     packages = find_packages('src'),
     package_dir={
         '': 'src',
-        'test': 'test',
+        #'test': 'test',
     },
     scripts = ['vast.py'],
     #entry_points = {
