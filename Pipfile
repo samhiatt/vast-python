@@ -1,0 +1,19 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[dev-packages]
+pytest = "*"
+requests-mock = "*"
+pyfakefs = "*"
+pdoc3 = "*"
+
+[packages]
+pandas = "*"
+paramiko = "*"
+requests = "*"
+plumbum = "*"
+
+[requires]
+python_version = "3.6"
