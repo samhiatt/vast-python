@@ -17,7 +17,7 @@ setup(
     #entry_points = {
     #    'console_scripts':['foobar=vastai.foobar:main'],
     #},
-    install_requires = [ 'paramiko', 'pandas' ],
+    install_requires = [ 'paramiko', 'pandas', 'requests' ],
     tests_require = test_deps,
     extras_require = {
         'docs': ['pdoc3'],

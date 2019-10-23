@@ -1,5 +1,4 @@
 #import logging
-import getpass
 import os
 import requests
 import json
@@ -10,9 +9,12 @@ from paramiko.client import SSHClient, AutoAddPolicy
 from paramiko.ssh_exception import NoValidConnectionsError
 from paramiko import RSAKey
 import sys
-from vastai.exceptions import InstanceError, Unauthorized, PrivateSshKeyNotFound
+from vastai.exceptions import InstanceError, Unauthorized, PrivateSshKeyNotFound, UnhandledSetupError
 from vastai.vast import displayable_fields, instance_fields, parse_query
 import pandas as pd
+import time
+from plumbum.machines.paramiko_machine import ParamikoMachine
+from paramiko.client import AutoAddPolicy
 
 default_api_key_file = os.path.join('~','.vast_api_key')
 default_ssh_key_dir = os.path.join('~','.ssh')
@@ -167,10 +169,20 @@ class VastClient:
         req_url = self._apiurl("/instances", owner="me")
         r = requests.get(req_url)
         r.raise_for_status()
-        # print(json.dumps(r.json()))
-        instances = r.json()["instances"]
-        self.instance_ids = [instance['id'] for instance in instances]
-        self.instances = InstanceList([Instance(self, **instance) for instance in instances])
+        resp = r.json()
+        # Merge with existing Instances
+        for instance_latest in resp["instances"]:
+            if instance_latest['id'] in self.instance_ids: 
+                # merge with existing
+                instance_idx = self.instance_ids.index(instance_latest['id'])
+                instance = self.instances[instance_idx]
+                for field in self.instances[instance_idx].fields:
+                    setattr(instance, field, instance_latest[field])
+                instance.status=instance_latest['actual_status']
+            else:
+                self.instances.append(Instance(self, **instance_latest))
+                self.instance_ids.append(instance_latest['id'])
+
         return self.instances
     
     def get_instance(self, id):
@@ -183,6 +195,9 @@ class VastClient:
         self.get_instances()
         idx = self.instance_ids.index(id)
         return self.instances[idx] if idx >= 0 else None
+
+    def get_running_instances(self):
+        return [inst for inst in self.get_instances() if inst.status=='running']
 
     def create_instance(self, offer_id, price=None, disk=1, image="tensorflow/tensorflow:nightly-gpu-py3", 
                         label=None, onstart=None, onstart_cmd=None, jupyter=False, jupyter_dir=None, jupyter_lab=False,
@@ -279,6 +294,12 @@ class VastClient:
         resp.raise_for_status()
         offer_list = OfferList(resp.json()["offers"])
         return offer_list
+
+    def stop_all_instances(self):
+        """ Convenience method to call .stop() on all instances returned by `get_instances`.
+        """
+        for inst in self.get_instances():
+            inst.stop()
         
     def _apiurl(self, subpath, **kwargs):
         query_args = {}
@@ -337,7 +358,8 @@ class InstanceList(list):
         if format_values:
             for k in self.value_formatters.keys():
                 fmt = self.value_formatters[k]
-                df[k] = [ fmt[0].format(fmt[1](val) if fmt[1] is not None else val) for val in df[k] ]
+                df[k] = [ fmt[0].format( fmt[1](val) if callable(fmt[1]) else val ) if val is not None else 'None'
+                        for val in df[k] ]
         if rename_columns is True:
             df = df.rename(columns=self.column_mapper)
         elif type(rename_columns) is dict:
@@ -349,14 +371,23 @@ class InstanceList(list):
     def __json__(self):
         return json.dumps([i.__dict__() for i in self])
     def __repr__(self):
-        return self.as_df().to_string(columns=self.column_mapper.values())
+        #return self.as_df().to_string(columns=self.column_mapper.values())
+        return '\n'.join([inst.__repr__() for inst in self])
         
 class OfferList(InstanceList):
     """ A list of Offerss, returned by `VastClient.search_offers()`
     """
-    display_columns = [field[0] for field in displayable_fields]
-    column_mapper = { field[0]:field[1] for field in displayable_fields}
-    value_formatters = { field[0]:(field[2],field[3]) for field in displayable_fields}
+    #display_columns = [field[0] for field in displayable_fields]
+    #column_mapper = { field[0]:field[1] for field in displayable_fields}
+    #value_formatters = { field[0]:(field[2],field[3]) for field in displayable_fields}
+    def __repr__(self):
+        return '\n'.join(["%s: "%inst['id']+\
+               ("Min bid: $%.4f/hr  "%inst['min_bid'] if inst['dph_total']==inst['min_bid'] \
+               else "$%.4f/hr  "%inst['dph_total'])+\
+               "{inet_up:3.1f}\u2191 {inet_down:3.1f}\u2193  flops:{total_flops:.1f}T  R:{reliability2:.3f}\n"\
+               "\t{num_gpus}X {gpu_gb:.1f}GB {gpu_name}, {cpu_cores_effective:.01f}/{cpu_cores}X {cpu_gb:.1f}GB {cpu_name}"\
+               .format(gpu_gb=inst['gpu_ram']/1024, cpu_gb=inst['cpu_ram']/2024, **inst)
+               for inst in self])
 
 class Instance:
     def __init__(self, client, **kwargs):
@@ -376,7 +407,12 @@ class Instance:
     def __repr__(self):
         """ Uses `pandas.DataTable` for display.
         """
-        return InstanceList([self.__dict__()]).__repr__()
+        #return InstanceList([self.__dict__()]).__repr__()
+        return "{id}: {actual_status:9s} ${dph_total:.4f}/hr {ssh_host}:{ssh_port}  "\
+               "{inet_up:3.1f}\u2191 {inet_down:3.1f}\u2193  flops:{total_flops}T\n"\
+               "\t{num_gpus}X {gpu_gb:.1f}GB {gpu_name}, {cpu_cores_effective}/{cpu_cores}X {cpu_gb:.1f}GB {cpu_name}"\
+               .format(gpu_gb=self.gpu_ram/1024, cpu_gb=self.cpu_ram/2024, **self.__dict__())+\
+               "\n\t%s"%self.status_msg if self.status_msg else ""
 
     def __dict__(self):
         """ Gets dict of serializable fields.
@@ -497,5 +533,47 @@ class Instance:
         #     raise InstanceError(self.id, err.errors)
         finally:
             ssh_client.close()
+
+    def pb_remote(self):
+        """ plumbum remote machine
+        Returns:
+            `plumbum.machines.paramiko_machine.ParamikoMachine`: 
+        """
+        return ParamikoMachine(self.ssh_host, user='root', port=self.ssh_port, 
+                         keyfile=self.client._get_ssh_key_file(), missing_host_policy=AutoAddPolicy)
             
-      
+    def _wait_until(self, target_status, check_every_s, timeout):
+        def _check_status(status=target_status):
+            if type(status) is str:
+                return self.status.lower()==status.lower() 
+            elif type(status) is list:
+                # Check to see if self.status is any of those listed in status
+                for st in status:
+                    if _check_status(st):
+                        return True
+                return False
+            else: 
+                raise TypeError("Expected target_status to be a string or a list of strings.")
+
+        start_time = time.time()
+        while time.time()-start_time<timeout:
+            #self = self.client.get_instance(self.id) # Calls get_instances() to refresh state
+            instance = self.client.get_instance(self.id)
+            if instance.status_msg.startswith("Unhandled setup error"):
+                raise(UnhandledSetupError(instance.status_msg))
+            if instance is None: return # instance destroyed
+            if _check_status(): return instance
+            print("status is '%s', waiting %ss..."%(self.status, check_every_s))
+            time.sleep(check_every_s)
+
+        raise TimeoutError("Checked every %i seconds, but self.status was never in target_status (%s)."%(
+                                check_every_s, str(target_status)))
+
+    def wait_until_running(self, check_every_s=60, timeout=600):
+        return self._wait_until('running', check_every_s, timeout)
+
+    def wait_until_stopped(self, check_every_s=15, timeout=600):
+        return self._wait_until(['exited','stopped'], check_every_s, timeout)
+
+    def wait_until_destroyed(self, check_every_s=15, timeout=600):
+        self._wait_until([], check_every_s, timeout)

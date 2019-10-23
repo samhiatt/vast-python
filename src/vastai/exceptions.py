@@ -17,3 +17,6 @@ class PrivateSshKeyNotFound(Exception):
             "Could not find ssh key in %s matching public key:\n%s"%(
             key_dir,pub_key)
         )
+
+class UnhandledSetupError(Exception):
+    pass
