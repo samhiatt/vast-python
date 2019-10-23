@@ -2,7 +2,8 @@ language: python
 python: 
   - 3.5
   - 3.6
-install: "pip install -r requirements_dev.txt"
+  - 3.7
+install: "pip install pipenv; pipenv install -d"
 script: "python setup.py test"
 before_deploy: "pdoc --config sort_identifiers=False --html src/vastai "
 deploy:
