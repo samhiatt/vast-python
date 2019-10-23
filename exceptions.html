@@ -42,7 +42,10 @@ class PrivateSshKeyNotFound(Exception):
         super().__init__(
             &#34;Could not find ssh key in %s matching public key:\n%s&#34;%(
             key_dir,pub_key)
-        )</code></pre>
+        )
+
+class UnhandledSetupError(Exception):
+    pass</code></pre>
 </details>
 </section>
 <section>
@@ -137,6 +140,25 @@ class PrivateSshKeyNotFound(Exception):
 <li>builtins.BaseException</li>
 </ul>
 </dd>
+<dt id="vastai.exceptions.UnhandledSetupError"><code class="flex name class">
+<span>class <span class="ident">UnhandledSetupError</span></span>
+<span>(</span><span>*args, **kwargs)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Common base class for all non-exit exceptions.</p></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class UnhandledSetupError(Exception):
+    pass</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
 </dl>
 </section>
 </article>
@@ -164,6 +186,9 @@ class PrivateSshKeyNotFound(Exception):
 </li>
 <li>
 <h4><code><a title="vastai.exceptions.PrivateSshKeyNotFound" href="#vastai.exceptions.PrivateSshKeyNotFound">PrivateSshKeyNotFound</a></code></h4>
+</li>
+<li>
+<h4><code><a title="vastai.exceptions.UnhandledSetupError" href="#vastai.exceptions.UnhandledSetupError">UnhandledSetupError</a></code></h4>
 </li>
 </ul>
 </li>
