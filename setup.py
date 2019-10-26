@@ -7,7 +7,7 @@ with open("README.md") as f:
 
 setup(
     name = "vastai",
-    version = "0.1",
+    version = "0.2",
     packages = find_packages('src'),
     package_dir={
         '': 'src',
