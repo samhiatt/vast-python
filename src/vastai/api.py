@@ -14,6 +14,8 @@ from vastai.vast import displayable_fields, instance_fields, parse_query
 import pandas as pd
 import time
 from plumbum.machines.paramiko_machine import ParamikoMachine
+from plumbum.machines.remote import ClosedRemote, ClosedRemoteMachine
+from plumbum.machines import SshMachine
 from paramiko.client import AutoAddPolicy
 
 default_api_key_file = os.path.join('~','.vast_api_key')
@@ -157,7 +159,7 @@ class VastClient:
         return public_key_file
 
         
-    def get_instances(self):
+    def get_instances(self, retries=2, retry_delay_s=5):
         """ Retrieves a list of user's configured instances.
         Raises:
             `vastai.exceptions.ApiKeyNotSet`: If `self.api_key` is not set. 
@@ -167,9 +169,16 @@ class VastClient:
         if self.api_key is None: raise ApiKeyNotSet()
         
         req_url = self._apiurl("/instances", owner="me")
-        r = requests.get(req_url)
-        r.raise_for_status()
-        resp = r.json()
+        try:
+            r = requests.get(req_url)
+            r.raise_for_status()
+            resp = r.json()
+        except HTTPError:
+            if retries>0:
+                time.wait(retry_delay_s)
+                return self.get_instances(retries=retries-1, 
+                                          retry_delay_s=retry_delay_s)
+            raise
         # Merge with existing Instances
         for instance_latest in resp["instances"]:
             if instance_latest['id'] in self.instance_ids: 
@@ -185,7 +194,7 @@ class VastClient:
 
         return self.instances
     
-    def get_instance(self, id):
+    def get_instance(self, id, retries=0, retry_delay_s=15):
         """ Get a configured `Instance` by id.
         Args:
             id (str): vast.ai instance id.
@@ -194,7 +203,11 @@ class VastClient:
         """
         self.get_instances()
         idx = self.instance_ids.index(id)
-        return self.instances[idx] if idx >= 0 else None
+        instance = self.instances[idx] if idx >= 0 else None
+        if instance is None and retries>0:
+            time.sleep(retry_delay_s)
+            return get_instance(id, retries=retries-1, retry_delay_s=retry_delay_s)
+        return instance
 
     def get_running_instances(self):
         return [inst for inst in self.get_instances() if inst.status=='running']
@@ -403,6 +416,9 @@ class Instance:
             setattr(self, key, kwargs[key])
             self.fields.append(key)
         self.status = self.actual_status if hasattr(self, 'actual_status') else None
+        self._pb_remote = None
+        self._ssh_machine = None
+        self._tunnels={}
 
     def __repr__(self):
         """ Uses `pandas.DataTable` for display.
@@ -461,8 +477,9 @@ class Instance:
             print("Error:", resp)
             raise InstanceError(resp, self.id)
         return resp_data
-
-    def get_ssh_connection_command(self, tunnel_local_port=None, tunnel_remote_port=None):
+        
+    @property 
+    def ssh_connection_command(self, tunnel_local_port=None, tunnel_remote_port=None):
         """ Convenience method to get ssh command for connecting to this machine. 
             Optionally include params for reverse proxy ssh tunnel. (e.g. to access
             a port behind firewall on the remote machine.
@@ -485,30 +502,41 @@ class Instance:
             price (float): per machine bid price in $/hour
         Raises:
             `vastai.exceptions.InstanceError`: if request doesn't return `{'success': true}`
+        Returns:
+            self
         """
         resp = self._request('put', "/instances/bid_price/%s/"%self.id, {"client_id": "me", "price": price })
         print("Bid changed to $%.3f/hr"%price)
+        return self
         
     def start(self):
         """ Starts this configured instance.  
         Raises:
             `vastai.exceptions.InstanceError`: if request doesn't return `{'success': true}`
+        Returns:
+            self
         """
         self._request('put', "/instances/%s/"%self.id, { "state": "running" })
         print("Starting instance %i."%self.id )
+        return self
 
     def stop(self):
         """ Stops this configured instance. You can restart the instance later. 
         Raises:
             `vastai.exceptions.InstanceError`: if request doesn't return `{'success': true}`
+        Returns:
+            self
         """
         self._request('put', "/instances/%s/"%self.id, {"state": "stopped"})
         print("Stopping instance %i."%self.id )
+        return self
 
     def destroy(self):
         """ Destroys this configured instance. All data on the remote instance will be lost.
         Raises:
             `vastai.exceptions.InstanceError`: if request doesn't return `{'success': true}`
+        Returns:
+            None
         """
         self._request('delete', "/instances/%s/"%self.id, {})
         print("Destroying instance %s"%self.id)
@@ -534,16 +562,70 @@ class Instance:
         finally:
             ssh_client.close()
 
+    @property
     def pb_remote(self):
-        """ plumbum remote machine
+        """ plumbum ParamikoMachine remote machine
         Returns:
             `plumbum.machines.paramiko_machine.ParamikoMachine`: 
         """
-        return ParamikoMachine(self.ssh_host, user='root', port=self.ssh_port, 
-                         keyfile=self.client._get_ssh_key_file(), missing_host_policy=AutoAddPolicy)
-            
-    def _wait_until(self, target_status, check_every_s, timeout):
+        if self._pb_remote:# and self._pb_remote._session.alive():
+            if self._pb_remote._session.alive():
+                return self._pb_remote 
+        self._pb_remote = ParamikoMachine(self.ssh_host, user='root', port=self.ssh_port, 
+                               keyfile=self.client._get_ssh_key_file(), 
+                               missing_host_policy=AutoAddPolicy )
+        return self._pb_remote
+
+    @property
+    def ssh_machine(self):
+        """ Returns a `plumbum.machines.SshMachine`, which has a tunnel method """
+        #return SshMachine(self.ssh_host, 'root', port=self.ssh_port, keyfile=self.client._get_ssh_key_file())
+        if self._ssh_machine:
+            if self._ssh_machine._session.alive():
+                return self._ssh_machine
+        self._ssh_machine = SshMachine(self.ssh_host, 'root', port=self.ssh_port, keyfile=self.client._get_ssh_key_file())
+        return self._ssh_machine
+
+    @property
+    def _ssh_machine_alive(self):
+        if self._ssh_machine is not None:
+            #if type(self._ssh_machine) is ClosedRemote:
+            #    return False
+            #else:
+            try:
+                return self._ssh_machine._session.alive()
+            except ClosedRemoteMachine:
+                return False
+        return False
+
+    def get_tunnel(self, tunnel_local_port, tunnel_remote_port=None):
+        """ Returns a singleton tunnel. 
+            Overrides ssh_tunnel.close method to close SshMachine object as well.
+        Args:
+            tunnel_local_port (int): local port for ssh tunnel. 
+            tunnel_remote_port (int, optional): remote port for ssh tunnel. 
+                                                (default: `tunnel_local_port`)
+        Returns:
+            object returned by plumbum.machines.SshMachine.tunnel
+        """
+        # TODO: Consider closing self.ssh_machine when tunnel is closed.
+        if tunnel_remote_port is None: 
+            tunnel_remote_port = tunnel_local_port
+
+        if tunnel_local_port in self._tunnels.keys():
+            tunnel = self._tunnels[tunnel_local_port]
+            if tunnel._session.alive():
+                return tunnel
+        self._tunnels[tunnel_local_port] = self.ssh_machine.tunnel(tunnel_local_port, tunnel_remote_port)
+        return self._tunnels[tunnel_local_port]
+
+
+    def _wait_until(self, target_status, check_every_s, timeout, destroy_return_delay=20):
         def _check_status(status=target_status):
+            if self.status_msg and self.status_msg.startswith("Unhandled setup error"):
+                raise(UnhandledSetupError(self.status_msg))
+            if self.status is None:
+                return False
             if type(status) is str:
                 return self.status.lower()==status.lower() 
             elif type(status) is list:
@@ -555,16 +637,22 @@ class Instance:
             else: 
                 raise TypeError("Expected target_status to be a string or a list of strings.")
 
+        #self = self.client.get_instance(self.id) # Calls get_instances() to refresh state
+        inst_id = self.id
+        client = self.client # Keep a reference to client, in case the Instance isn't in get_instances yet
+        inst = client.get_instance(inst_id) # Calls get_instances() which refreshes state
         start_time = time.time()
-        while time.time()-start_time<timeout:
-            #self = self.client.get_instance(self.id) # Calls get_instances() to refresh state
-            instance = self.client.get_instance(self.id)
-            if instance.status_msg.startswith("Unhandled setup error"):
-                raise(UnhandledSetupError(instance.status_msg))
-            if instance is None: return # instance destroyed
-            if _check_status(): return instance
-            print("status is '%s', waiting %ss..."%(self.status, check_every_s))
+        while not _check_status() and time.time()-start_time<timeout:
+            #instance = self.client.get_instance(inst_id)
+            inst = client.get_instance(inst_id)
+            if inst is None and time.time()-start_time>destroy_return_delay:
+                print("Instance destroyed.")
+                return 
+            #print("Instance %s status is '%s'. Waiting %ss..."%(self.id, self.status, check_every_s))
+            print("Waiting %ss..."%(check_every_s))
             time.sleep(check_every_s)
+        if _check_status(): 
+            return inst
 
         raise TimeoutError("Checked every %i seconds, but self.status was never in target_status (%s)."%(
                                 check_every_s, str(target_status)))
@@ -572,8 +660,8 @@ class Instance:
     def wait_until_running(self, check_every_s=60, timeout=600):
         return self._wait_until('running', check_every_s, timeout)
 
-    def wait_until_stopped(self, check_every_s=15, timeout=600):
+    def wait_until_stopped(self, check_every_s=15, timeout=300):
         return self._wait_until(['exited','stopped'], check_every_s, timeout)
 
-    def wait_until_destroyed(self, check_every_s=15, timeout=600):
+    def wait_until_destroyed(self, check_every_s=10, timeout=60):
         self._wait_until([], check_every_s, timeout)
