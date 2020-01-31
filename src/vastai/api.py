@@ -175,7 +175,7 @@ class VastClient:
             resp = r.json()
         except HTTPError:
             if retries>0:
-                time.wait(retry_delay_s)
+                time.sleep(retry_delay_s)
                 return self.get_instances(retries=retries-1, 
                                           retry_delay_s=retry_delay_s)
             raise
